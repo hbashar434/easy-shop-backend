@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 export class UserResponseDto {
   @ApiProperty({
     description: 'User ID',
-    example: '1',
+    example: 'b3f14b1e-2a6b-4e23-bd17-8c5f60a3d9f7',
   })
   id: string;
 
