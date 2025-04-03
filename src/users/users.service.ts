@@ -1,20 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  UserResponseDto,
+  UserListResponseDto,
+  DeleteUserResponseDto,
+} from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(): Promise<UserListResponseDto> {
     const users = await this.prisma.user.findMany();
-    return users.map((user) => {
-      const { password, ...result } = user;
-      return result;
-    });
+    return {
+      users: users.map((user) => {
+        const { password, ...result } = user;
+        return result;
+      }),
+    };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -25,7 +32,10 @@ export class UsersService {
     return result;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
@@ -34,7 +44,7 @@ export class UsersService {
     return result;
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<DeleteUserResponseDto> {
     await this.prisma.user.delete({
       where: { id },
     });
