@@ -14,21 +14,30 @@ enum Role {
 }
 
 model User {
-  id                    String    @id @default(uuid())
-  email                 String    @unique @db.VarChar(255)
-  password              String    @db.VarChar(255)
-  firstName             String?   @db.VarChar(50)
-  lastName              String?   @db.VarChar(50)
-  role                  Role      @default(USER)
-  isActive              Boolean   @default(true)
-  lastLogin             DateTime?
-  resetPasswordToken    String?   @db.VarChar(255)
-  resetPasswordExpires  DateTime?
-  refreshToken          String?   @db.VarChar(255)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  deletedAt             DateTime?
+  id                     String    @id @default(uuid())
+  email                  String?    @unique @db.VarChar(255)
+  phone                  String?   @unique @db.VarChar(20)
+  password               String    @db.VarChar(255)
+  firstName              String?   @db.VarChar(50)
+  lastName               String?   @db.VarChar(50)
+  role                   Role      @default(USER)
+  isActive               Boolean   @default(true)
 
-  @@index([firstName])  // Indexing firstName is useful for search.
+  isEmailVerified        Boolean   @default(false)          // Email verified
+  isPhoneVerified        Boolean   @default(false)          // Phone verified
+  verificationToken      String?   @db.VarChar(6)           // For OTP verification
+  verificationExpires    DateTime?                          // OTP expiry time
+
+  resetPasswordToken     String?   @db.VarChar(6)           // For password reset OTP
+  resetPasswordExpires   DateTime?                          // Reset OTP expiry time
+
+  refreshToken           String?   @db.VarChar(255)         // For JWT-based sessions
+  lastLogin              DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  @@index([firstName])
 }
+
 
