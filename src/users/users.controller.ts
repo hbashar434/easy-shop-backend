@@ -6,6 +6,8 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
+  Post,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -22,6 +24,7 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import {
   UserResponseDto,
@@ -39,17 +42,26 @@ export class UsersController {
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({
+    name: 'includeDeleted',
+    type: Boolean,
+    required: false,
+    description: 'Include soft-deleted users in the results',
+  })
   @ApiOkResponse({
     description: 'List of users retrieved successfully',
     type: UserListResponseDto,
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiForbiddenResponse({ description: 'User does not have required role' })
-  findAll(): Promise<UserListResponseDto> {
-    return this.usersService.findAll();
+  findAll(
+    @Query('includeDeleted') includeDeleted?: boolean,
+  ): Promise<UserListResponseDto> {
+    return this.usersService.findAll(includeDeleted);
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
@@ -85,6 +97,12 @@ export class UsersController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete user' })
   @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiQuery({
+    name: 'hardDelete',
+    type: Boolean,
+    required: false,
+    description: 'Permanently delete the user instead of soft delete',
+  })
   @ApiOkResponse({
     description: 'User deleted successfully',
     type: DeleteUserResponseDto,
@@ -92,7 +110,25 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @ApiForbiddenResponse({ description: 'User does not have required role' })
-  remove(@Param('id') id: string): Promise<DeleteUserResponseDto> {
-    return this.usersService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Query('hardDelete') hardDelete?: boolean,
+  ): Promise<DeleteUserResponseDto> {
+    return this.usersService.remove(id, hardDelete);
+  }
+
+  @Post(':id/restore')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Restore deleted user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiOkResponse({
+    description: 'User restored successfully',
+    type: UserResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @ApiForbiddenResponse({ description: 'User does not have required role' })
+  restore(@Param('id') id: string): Promise<UserResponseDto> {
+    return this.usersService.restore(id);
   }
 }
