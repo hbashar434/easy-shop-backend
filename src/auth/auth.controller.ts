@@ -59,7 +59,6 @@ export class AuthController {
   }
 
   @Post('login')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
@@ -73,7 +72,6 @@ export class AuthController {
   }
 
   @Post('email/verify/request')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request email verification code' })
   @ApiBody({ type: RequestEmailVerificationDto })
   @ApiOkResponse({ description: 'Verification code sent successfully' })
@@ -85,7 +83,6 @@ export class AuthController {
   }
 
   @Post('email/verify')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email with code' })
   @ApiBody({ type: VerifyEmailDto })
   @ApiOkResponse({ description: 'Email verified successfully' })
@@ -95,7 +92,6 @@ export class AuthController {
   }
 
   @Post('password/reset/request')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset code' })
   @ApiBody({ type: RequestPasswordResetDto })
   @ApiOkResponse({ description: 'Reset code sent successfully' })
@@ -107,7 +103,6 @@ export class AuthController {
   }
 
   @Post('password/reset')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with code' })
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse({ description: 'Password reset successfully' })
