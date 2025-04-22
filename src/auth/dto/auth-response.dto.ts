@@ -13,6 +13,7 @@ export class AuthResponseDto {
     example: {
       id: 'b3f14b1e-2a6b-4e23-bd17-8c5f60a3d9f7',
       email: 'user@example.com',
+      phone: '+1234567890',
       firstName: 'John',
       lastName: 'Doe',
       role: 'USER',
@@ -20,7 +21,8 @@ export class AuthResponseDto {
   })
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     firstName: string | null;
     lastName: string | null;
     role: Role;
