@@ -11,8 +11,16 @@ export class UserResponseDto {
   @ApiProperty({
     description: 'User email address',
     example: 'user@example.com',
+    required: false,
   })
-  email: string;
+  email: string | null;
+
+  @ApiProperty({
+    description: 'Phone number',
+    example: '+8801712345678',
+    required: false,
+  })
+  phone: string | null;
 
   @ApiProperty({
     description: 'User first name',
@@ -36,6 +44,31 @@ export class UserResponseDto {
   role: Role;
 
   @ApiProperty({
+    description: 'Account active status',
+    example: true,
+  })
+  isActive: boolean;
+
+  @ApiProperty({
+    description: 'Email verification status',
+    example: false,
+  })
+  isEmailVerified: boolean;
+
+  @ApiProperty({
+    description: 'Phone verification status',
+    example: false,
+  })
+  isPhoneVerified: boolean;
+
+  @ApiProperty({
+    description: 'Last login timestamp',
+    example: '2024-04-03T12:00:00Z',
+    required: false,
+  })
+  lastLogin: Date | null;
+
+  @ApiProperty({
     description: 'User creation timestamp',
     example: '2024-04-03T12:00:00Z',
   })
@@ -46,6 +79,13 @@ export class UserResponseDto {
     example: '2024-04-03T12:00:00Z',
   })
   updatedAt: Date;
+
+  @ApiProperty({
+    description: 'User deletion timestamp',
+    example: '2024-04-03T12:00:00Z',
+    required: false,
+  })
+  deletedAt: Date | null;
 }
 
 export class UserListResponseDto {

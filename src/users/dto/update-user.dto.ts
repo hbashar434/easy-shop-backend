@@ -1,15 +1,37 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { RegisterDto } from 'src/auth/dto/register.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 
-export class UpdateUserDto extends PartialType(RegisterDto) {
+export class UpdateUserDto {
   @ApiProperty({
     description: 'User email address',
     example: 'user@example.com',
     required: false,
   })
+  @IsEmail()
+  @IsOptional()
   email?: string;
+
+  @ApiProperty({
+    description: 'Phone number in international format',
+    example: '+8801712345678',
+    required: false,
+  })
+  @IsString()
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  @IsOptional()
+  phone?: string;
 
   @ApiProperty({
     description: 'User password - minimum 8 characters',
@@ -17,6 +39,9 @@ export class UpdateUserDto extends PartialType(RegisterDto) {
     minLength: 8,
     required: false,
   })
+  @IsString()
+  @MinLength(8)
+  @IsOptional()
   password?: string;
 
   @ApiProperty({
@@ -24,6 +49,8 @@ export class UpdateUserDto extends PartialType(RegisterDto) {
     example: 'John',
     required: false,
   })
+  @IsString()
+  @IsOptional()
   firstName?: string;
 
   @ApiProperty({
@@ -31,6 +58,8 @@ export class UpdateUserDto extends PartialType(RegisterDto) {
     example: 'Doe',
     required: false,
   })
+  @IsString()
+  @IsOptional()
   lastName?: string;
 
   @ApiProperty({
@@ -39,5 +68,34 @@ export class UpdateUserDto extends PartialType(RegisterDto) {
     enum: Role,
     required: false,
   })
+  @IsEnum(Role)
+  @IsOptional()
   role?: Role;
+
+  @ApiProperty({
+    description: 'Account active status',
+    example: true,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @ApiProperty({
+    description: 'Email verification status',
+    example: false,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isEmailVerified?: boolean;
+
+  @ApiProperty({
+    description: 'Phone verification status',
+    example: false,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isPhoneVerified?: boolean;
 }
