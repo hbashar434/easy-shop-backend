@@ -1,8 +1,11 @@
+export type MailPriority = 'high' | 'normal' | 'low';
+
 export interface MailData {
-  to: string | string[];
+  to: string;
   subject: string;
   template: string;
-  context?: Record<string, any>;
+  context: Record<string, any>;
+  priority?: MailPriority;
 }
 
 export interface MailConfig {
@@ -14,4 +17,19 @@ export interface MailConfig {
     pass: string;
   };
   from: string;
+}
+
+export interface MailMetrics {
+  startTime: number;
+  processingTime: number;
+}
+
+export interface BatchMailResponse {
+  success: MailData[];
+  failed: Array<{
+    mail: MailData;
+    error: string;
+  }>;
+  totalProcessed: number;
+  metrics: MailMetrics;
 }

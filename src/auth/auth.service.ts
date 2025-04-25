@@ -62,7 +62,7 @@ export class AuthService {
       throw new BadRequestException('Email is required for registration');
     }
 
-    await this.mailService.sendMail({
+    await this.mailService.sendMails({
       to: user.email,
       subject: 'Welcome to MyShop - Verify Your Email',
       template: 'verification-code',
@@ -193,7 +193,7 @@ export class AuthService {
       },
     });
 
-    await this.mailService.sendMail({
+    await this.mailService.sendMails({
       to: user.email,
       subject: 'Email Verification Code',
       template: 'verification-code',
@@ -261,7 +261,7 @@ export class AuthService {
     });
 
     if (user.email) {
-      await this.mailService.sendMail({
+      await this.mailService.sendMails({
         to: user.email,
         subject: 'Password Reset Request',
         template: 'reset-password',
