@@ -8,6 +8,7 @@ CREATE TABLE `User` (
     `lastName` VARCHAR(50) NULL,
     `role` ENUM('ADMIN', 'MANAGER', 'USER') NOT NULL DEFAULT 'USER',
     `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `isProfileComplete` BOOLEAN NOT NULL DEFAULT false,
     `isEmailVerified` BOOLEAN NOT NULL DEFAULT false,
     `isPhoneVerified` BOOLEAN NOT NULL DEFAULT false,
     `verificationToken` VARCHAR(6) NULL,
