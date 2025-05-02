@@ -22,20 +22,25 @@ export class MailService {
   private readonly onlyEmails: string[];
   private readonly DEFAULT_CHUNK_SIZE = 10;
   private readonly MAX_RETRIES = 3;
+  private isRedisAvailable = true;
 
   constructor(
     private readonly mailerService: MailerService,
     @InjectQueue('mail') private readonly mailQueue: Queue,
     private readonly configService: ConfigService,
   ) {
-    this.sendMail = this.configService.get<string>('SEND_MAIL') === 'true';
+    const sendMailConfig = this.configService.get<string>('SEND_MAIL');
+    this.sendMail = sendMailConfig === 'true';
+
     const onlyEmailsStr = this.configService.get<string>('ONLY_MAILS');
     this.onlyEmails = onlyEmailsStr ? onlyEmailsStr.split(',') : [];
-    this.initializeService();
+
+    void this.initializeService();
   }
 
-  private initializeService(): void {
+  private async initializeService(): Promise<void> {
     this.validateConfig();
+    await this.checkRedisConnection();
   }
 
   private validateConfig(): void {
@@ -51,11 +56,25 @@ export class MailService {
     }
   }
 
-  private getTargetEmails(originalTo: string): string[] {
-    if (this.onlyEmails.length > 0) {
-      return this.onlyEmails;
+  private async checkRedisConnection(): Promise<void> {
+    try {
+      await this.mailQueue.client.ping();
+      this.isRedisAvailable = true;
+      this.logger.log('Redis connection successful');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.isRedisAvailable = false;
+      this.logger.warn(
+        `Redis is not available, falling back to direct email sending: ${errorMessage}`,
+        errorStack,
+      );
     }
-    return [originalTo];
+  }
+
+  private getTargetEmails(originalTo: string): string[] {
+    return this.onlyEmails.length > 0 ? this.onlyEmails : [originalTo];
   }
 
   private async processMailChunk(
@@ -66,7 +85,7 @@ export class MailService {
       chunk.map(async (mail) => {
         try {
           await this.validateAndQueueMail(mail, response);
-        } catch (error) {
+        } catch (error: unknown) {
           this.handleMailError(mail, error, response);
         } finally {
           response.totalProcessed++;
@@ -151,6 +170,26 @@ export class MailService {
     response.metrics.processingTime = Date.now() - response.metrics.startTime;
   }
 
+  private async sendDirectEmail(mail: MailData): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: mail.to,
+        subject: mail.subject,
+        template: mail.template,
+        context: mail.context,
+      });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to send email directly: ${errorMessage}`,
+        errorStack,
+      );
+      throw error;
+    }
+  }
+
   private async queueEmails(
     mail: MailData,
     targetEmails: string[],
@@ -158,20 +197,32 @@ export class MailService {
     const queueOptions = {
       attempts: this.MAX_RETRIES,
       backoff: {
-        type: 'exponential',
+        type: 'exponential' as const,
         delay: 1000,
       },
       priority: this.priorityMap[mail.priority || 'normal'],
     };
 
     await Promise.all(
-      targetEmails.map(async (targetEmail) =>
-        this.mailQueue.add(
-          'send-mail',
-          { ...mail, to: targetEmail },
-          queueOptions,
-        ),
-      ),
+      targetEmails.map(async (targetEmail) => {
+        const emailData: MailData = { ...mail, to: targetEmail };
+
+        if (!this.isRedisAvailable) {
+          // Fallback to direct email sending if Redis is not available
+          return this.sendDirectEmail(emailData);
+        }
+
+        try {
+          await this.mailQueue.add('send-mail', emailData, queueOptions);
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `Queue operation failed for ${targetEmail}, falling back to direct email sending: ${errorMessage}`,
+          );
+          await this.sendDirectEmail(emailData);
+        }
+      }),
     );
   }
 }
