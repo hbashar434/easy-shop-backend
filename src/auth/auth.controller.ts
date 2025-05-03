@@ -1,12 +1,12 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { PhoneRegisterDto } from './dto/phone-register.dto';
 import {
-  RequestEmailVerificationDto,
-  VerifyEmailDto,
-} from './dto/verify-email.dto';
+  InitiateEmailRegisterDto,
+  InitiatePhoneRegisterDto,
+  CompleteEmailRegisterDto,
+  CompletePhoneRegisterDto,
+} from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import {
   RequestPasswordResetDto,
   ResetPasswordDto,
@@ -28,38 +28,64 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('email/code')
+  @ApiOperation({ summary: 'Start registration process with email' })
+  @ApiBody({ type: InitiateEmailRegisterDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiConflictResponse({ description: 'Email already registered' })
+  initiateEmailRegister(
+    @Body() dto: InitiateEmailRegisterDto,
+  ): Promise<{ message: string }> {
+    return this.authService.initiateEmailRegister(dto);
+  }
+
   @Post('email/register')
-  @ApiOperation({ summary: 'Register a new user with email' })
-  @ApiBody({ type: RegisterDto })
+  @ApiOperation({
+    summary: 'Complete email registration with verification code',
+  })
+  @ApiBody({ type: CompleteEmailRegisterDto })
   @ApiCreatedResponse({
     description: 'User successfully registered',
     type: AuthResponseDto,
   })
+  @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  completeEmailRegister(
+    @Body() dto: CompleteEmailRegisterDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.completeEmailRegister(dto);
+  }
+
+  @Post('phone/code')
+  @ApiOperation({ summary: 'Start registration process with phone' })
+  @ApiBody({ type: InitiatePhoneRegisterDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiConflictResponse({ description: 'User with this email already exists' })
-  register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
-    return this.authService.register(registerDto);
+  @ApiConflictResponse({ description: 'Phone number already registered' })
+  initiatePhoneRegister(
+    @Body() dto: InitiatePhoneRegisterDto,
+  ): Promise<{ message: string }> {
+    return this.authService.initiatePhoneRegister(dto);
   }
 
   @Post('phone/register')
-  @ApiOperation({ summary: 'Register a new user with phone number' })
-  @ApiBody({ type: PhoneRegisterDto })
+  @ApiOperation({
+    summary: 'Complete phone registration with verification code',
+  })
+  @ApiBody({ type: CompletePhoneRegisterDto })
   @ApiCreatedResponse({
     description: 'User successfully registered',
     type: AuthResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiConflictResponse({
-    description: 'User with this phone number already exists',
-  })
-  registerWithPhone(
-    @Body() phoneRegisterDto: PhoneRegisterDto,
+  @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  completePhoneRegister(
+    @Body() dto: CompletePhoneRegisterDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.registerWithPhone(phoneRegisterDto);
+    return this.authService.completePhoneRegister(dto);
   }
 
-  @Post('login')
-  @ApiOperation({ summary: 'Login user' })
+  @Post('login/password')
+  @ApiOperation({ summary: 'Login with password' })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
     description: 'User successfully logged in',
@@ -67,28 +93,27 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  loginWithPassword(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.loginWithPassword(
+      loginDto.identifier,
+      loginDto.password,
+    );
   }
 
-  @Post('email/verify/request')
-  @ApiOperation({ summary: 'Request email verification code' })
-  @ApiBody({ type: RequestEmailVerificationDto })
-  @ApiOkResponse({ description: 'Verification code sent successfully' })
-  @ApiBadRequestResponse({ description: 'Invalid email or user not found' })
-  requestEmailVerification(
-    @Body() dto: RequestEmailVerificationDto,
-  ): Promise<void> {
-    return this.authService.requestEmailVerification(dto);
-  }
-
-  @Post('email/verify')
-  @ApiOperation({ summary: 'Verify email with code' })
-  @ApiBody({ type: VerifyEmailDto })
-  @ApiOkResponse({ description: 'Email verified successfully' })
-  @ApiBadRequestResponse({ description: 'Invalid code or expired' })
-  verifyEmail(@Body() dto: VerifyEmailDto): Promise<void> {
-    return this.authService.verifyEmail(dto);
+  @Post('login/otp')
+  @ApiOperation({ summary: 'Login with OTP' })
+  @ApiBody({ type: LoginDto })
+  @ApiOkResponse({
+    description: 'User successfully logged in or verification code sent',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  loginWithOTP(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.loginWithOTP(
+      loginDto.identifier,
+      loginDto.verificationCode,
+    );
   }
 
   @Post('password/reset/request')
