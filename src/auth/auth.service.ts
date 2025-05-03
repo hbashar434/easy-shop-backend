@@ -20,6 +20,8 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailService } from '../common/mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { JwtPayloadType } from './interfaces/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +29,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private configService: ConfigService,
   ) {}
 
   private generateVerificationCode(): string {
@@ -37,35 +40,38 @@ export class AuthService {
     return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   }
 
-  private async sendLoginVerificationCode(user: User): Promise<void> {
-    const verificationCode = this.generateVerificationCode();
-    const verificationExpires = this.getVerificationExpiry();
+  private generateTokens(user: User) {
+    const accessPayload: JwtPayloadType = {
+      sub: user.id,
+      email: user.email ?? '',
+      role: user.role,
+    };
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        verificationToken: verificationCode,
-        verificationExpires,
-      },
+    const refreshPayload: Pick<JwtPayloadType, 'sub'> = {
+      sub: user.id,
+    };
+
+    const accessToken = this.jwtService.sign(accessPayload, {
+      secret: this.configService.get('JWT_ACCESS_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES_IN', '1d'),
     });
 
-    if (user.email) {
-      await this.mailService.sendMails({
-        to: user.email,
-        subject: 'Login Verification Code',
-        template: 'verification-code',
-        context: {
-          name: user.firstName || 'User',
-          verificationCode,
-          expiresIn: 10,
-        },
-      });
-    } else if (user.phone) {
-      // TODO: Implement SMS service integration
-      console.log(
-        `SMS login verification code for ${user.phone}: ${verificationCode}`,
-      );
-    }
+    const refreshToken = this.jwtService.sign(refreshPayload, {
+      secret: this.configService.get('JWT_REFRESH_SECRET'),
+      expiresIn: '7d',
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  private async updateUserTokens(userId: string, refreshToken: string | null) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken,
+        lastLogin: new Date(),
+      },
+    });
   }
 
   private createUserResponse(user: User): AuthResponseDto {
@@ -78,13 +84,14 @@ export class AuthService {
       ...userWithoutSensitive
     } = user;
 
+    const tokens = this.generateTokens(user);
+
+    // Update user with refresh token and lastLogin
+    void this.updateUserTokens(user.id, tokens.refreshToken);
+
     return {
-      accessToken: this.jwtService.sign({
-        sub: user.id,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      }),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         ...userWithoutSensitive,
         isProfileComplete: user.isProfileComplete,
@@ -173,6 +180,7 @@ export class AuthService {
         isEmailVerified: true,
         verificationToken: null,
         verificationExpires: null,
+        lastLogin: new Date(),
       },
     });
 
@@ -248,24 +256,34 @@ export class AuthService {
         isPhoneVerified: true,
         verificationToken: null,
         verificationExpires: null,
+        lastLogin: new Date(),
       },
     });
 
     return this.createUserResponse(updatedUser);
   }
 
-  async loginWithPassword(
-    identifier: string,
-    password: string | undefined,
+  async loginWithEmailPassword(
+    email: string,
+    password: string,
   ): Promise<AuthResponseDto> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: identifier }, { phone: identifier }],
-      },
+    const user = await this.prisma.user.findUnique({
+      where: { email },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isEmailVerified) {
+      if (user.isPhoneVerified) {
+        throw new BadRequestException(
+          `Email is not verified. Please login with your verified phone number: ${user.phone}`,
+        );
+      }
+      throw new BadRequestException(
+        'Email is not verified. Please verify it first.',
+      );
     }
 
     if (!password) {
@@ -276,38 +294,6 @@ export class AuthService {
       throw new BadRequestException(
         'Password not set for this account. Please use OTP login',
       );
-    }
-
-    // Check if the identifier used for login is verified
-    const isEmailLogin = identifier.includes('@');
-    const isIdentifierVerified = isEmailLogin
-      ? user.isEmailVerified
-      : user.isPhoneVerified;
-
-    if (!isIdentifierVerified) {
-      const alternativeIdentifier = isEmailLogin
-        ? user.isPhoneVerified
-          ? user.phone
-          : null
-        : user.isEmailVerified
-          ? user.email
-          : null;
-
-      if (alternativeIdentifier) {
-        throw new BadRequestException(
-          `This ${
-            isEmailLogin ? 'email' : 'phone number'
-          } is not verified. Please login with your verified ${
-            isEmailLogin ? 'phone number' : 'email'
-          }: ${alternativeIdentifier}`,
-        );
-      } else {
-        throw new BadRequestException(
-          `This ${
-            isEmailLogin ? 'email' : 'phone number'
-          } is not verified. Please verify it first.`,
-        );
-      }
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -323,39 +309,24 @@ export class AuthService {
     return this.createUserResponse(user);
   }
 
-  async loginWithOTP(
-    identifier: string,
+  async loginWithEmailOtp(
+    email: string,
     verificationCode?: string,
   ): Promise<AuthResponseDto> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: identifier }, { phone: identifier }],
-      },
+    const user = await this.prisma.user.findUnique({
+      where: { email },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if the identifier is verified
-    const isEmailLogin = identifier.includes('@');
-    const isIdentifierVerified = isEmailLogin
-      ? user.isEmailVerified
-      : user.isPhoneVerified;
-
-    if (!isIdentifierVerified) {
-      throw new BadRequestException(
-        `This ${isEmailLogin ? 'email' : 'phone number'} is not verified.`,
-      );
+    if (!user.isEmailVerified) {
+      throw new BadRequestException('Email is not verified');
     }
 
-    // If no verification code provided, send one
     if (!verificationCode) {
-      await this.sendLoginVerificationCode(user);
-      throw new BadRequestException({
-        message: 'Verification code sent to your email/phone',
-        requiresVerification: true,
-      });
+      throw new BadRequestException('Verification code is required');
     }
 
     // Verify the code
@@ -379,5 +350,130 @@ export class AuthService {
     });
 
     return this.createUserResponse(user);
+  }
+
+  async loginWithPhonePassword(
+    phone: string,
+    password: string,
+  ): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isPhoneVerified) {
+      if (user.isEmailVerified) {
+        throw new BadRequestException(
+          `Phone is not verified. Please login with your verified email: ${user.email}`,
+        );
+      }
+      throw new BadRequestException(
+        'Phone is not verified. Please verify it first.',
+      );
+    }
+
+    if (!password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'Password not set for this account. Please use OTP login',
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    return this.createUserResponse(user);
+  }
+
+  async loginWithPhoneOtp(
+    phone: string,
+    verificationCode?: string,
+  ): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isPhoneVerified) {
+      throw new BadRequestException('Phone number is not verified');
+    }
+
+    if (!verificationCode) {
+      throw new BadRequestException('Verification code is required');
+    }
+
+    // Verify the code
+    if (
+      !user.verificationToken ||
+      user.verificationToken !== verificationCode ||
+      !user.verificationExpires ||
+      new Date() > user.verificationExpires
+    ) {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+
+    // Clear verification data
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verificationToken: null,
+        verificationExpires: null,
+        lastLogin: new Date(),
+      },
+    });
+
+    return this.createUserResponse(user);
+  }
+
+  async refreshTokens(refreshToken: string): Promise<AuthResponseDto> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      // Verify the refresh token with proper type
+      const payload = this.jwtService.verify<Pick<JwtPayloadType, 'sub'>>(
+        refreshToken,
+        {
+          secret: this.configService.get('JWT_REFRESH_SECRET'),
+        },
+      );
+
+      if (!payload?.sub) {
+        throw new UnauthorizedException('Invalid refresh token payload');
+      }
+
+      // Find user with this refresh token
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: payload.sub,
+          refreshToken: refreshToken,
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      return this.createUserResponse(user);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 }
