@@ -1,4 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   EmailCodeDto,
@@ -166,5 +173,71 @@ export class AuthController {
     @Body('refreshToken') refreshToken: string,
   ): Promise<AuthResponseDto> {
     return this.authService.refreshTokens(refreshToken);
+  }
+
+  @Post('email/password/request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset via email' })
+  @ApiBody({ type: RequestPasswordResetDto })
+  @ApiOkResponse({ description: 'Reset code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid email' })
+  async requestEmailPasswordReset(
+    @Body('email') email: string,
+  ): Promise<{ message: string }> {
+    return this.authService.requestEmailPasswordReset(email);
+  }
+
+  @Post('email/password/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using email and reset code' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Password reset successful' })
+  @ApiBadRequestResponse({ description: 'Invalid or expired reset code' })
+  async resetEmailPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    if (!dto.email || !dto.code || !dto.newPassword) {
+      throw new BadRequestException(
+        'Email, code and new password are required',
+      );
+    }
+    return this.authService.emailPasswordReset(
+      dto.email,
+      dto.code,
+      dto.newPassword,
+    );
+  }
+
+  @Post('phone/password/request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset via phone' })
+  @ApiBody({ type: RequestPasswordResetDto })
+  @ApiOkResponse({ description: 'Reset code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid phone number' })
+  async requestPhonePasswordReset(
+    @Body('phone') phone: string,
+  ): Promise<{ message: string }> {
+    return this.authService.requestPhonePasswordReset(phone);
+  }
+
+  @Post('phone/password/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using phone and reset code' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Password reset successful' })
+  @ApiBadRequestResponse({ description: 'Invalid or expired reset code' })
+  async resetPhonePassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    if (!dto.phone || !dto.code || !dto.newPassword) {
+      throw new BadRequestException(
+        'Phone, code and new password are required',
+      );
+    }
+    return this.authService.phonePasswordReset(
+      dto.phone,
+      dto.code,
+      dto.newPassword,
+    );
   }
 }
