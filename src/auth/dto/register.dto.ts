@@ -49,7 +49,7 @@ export class RegisterDto {
   role?: Role;
 }
 
-export class InitiateEmailRegisterDto {
+export class EmailCodeDto {
   @ApiProperty({
     example: 'user@example.com',
     description: 'User email address',
@@ -58,7 +58,7 @@ export class InitiateEmailRegisterDto {
   email: string;
 }
 
-export class InitiatePhoneRegisterDto {
+export class PhoneCodeDto {
   @ApiProperty({
     example: '+8801712345678',
     description: 'Phone number in international format',
@@ -71,7 +71,7 @@ export class InitiatePhoneRegisterDto {
   phone: string;
 }
 
-export class CompleteEmailRegisterDto {
+export class RegisterWithEmailDto {
   @ApiProperty({
     example: 'user@example.com',
     description: 'User email address',
@@ -90,7 +90,7 @@ export class CompleteEmailRegisterDto {
   code: string;
 }
 
-export class CompletePhoneRegisterDto {
+export class RegisterWithPhoneDto {
   @ApiProperty({
     example: '+8801712345678',
     description: 'Phone number',

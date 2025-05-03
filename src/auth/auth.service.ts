@@ -7,10 +7,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  InitiateEmailRegisterDto,
-  InitiatePhoneRegisterDto,
-  CompleteEmailRegisterDto,
-  CompletePhoneRegisterDto,
+  EmailCodeDto,
+  PhoneCodeDto,
+  RegisterWithEmailDto,
+  RegisterWithPhoneDto,
 } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import {
@@ -20,6 +20,7 @@ import {
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailService } from '../common/mail/mail.service';
 import * as bcrypt from 'bcrypt';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +38,7 @@ export class AuthService {
     return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   }
 
-  private async sendLoginVerificationCode(user: any): Promise<void> {
+  private async sendLoginVerificationCode(user: User): Promise<void> {
     const verificationCode = this.generateVerificationCode();
     const verificationExpires = this.getVerificationExpiry();
 
@@ -68,7 +69,7 @@ export class AuthService {
     }
   }
 
-  private createUserResponse(user: any): AuthResponseDto {
+  private createUserResponse(user: User): AuthResponseDto {
     const {
       password,
       verificationToken,
@@ -92,9 +93,7 @@ export class AuthService {
     };
   }
 
-  async initiateEmailRegister(
-    dto: InitiateEmailRegisterDto,
-  ): Promise<{ message: string }> {
+  async sendEmailCode(dto: EmailCodeDto): Promise<{ message: string }> {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -153,9 +152,7 @@ export class AuthService {
     return { message: 'Verification code sent successfully' };
   }
 
-  async completeEmailRegister(
-    dto: CompleteEmailRegisterDto,
-  ): Promise<AuthResponseDto> {
+  async registerWithEmail(dto: RegisterWithEmailDto): Promise<AuthResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: {
         email: dto.email,
@@ -183,9 +180,7 @@ export class AuthService {
     return this.createUserResponse(updatedUser);
   }
 
-  async initiatePhoneRegister(
-    dto: InitiatePhoneRegisterDto,
-  ): Promise<{ message: string }> {
+  async sendPhoneCode(dto: PhoneCodeDto): Promise<{ message: string }> {
     const existingUser = await this.prisma.user.findUnique({
       where: { phone: dto.phone },
     });
@@ -232,9 +227,7 @@ export class AuthService {
     return { message: 'Verification code sent successfully' };
   }
 
-  async completePhoneRegister(
-    dto: CompletePhoneRegisterDto,
-  ): Promise<AuthResponseDto> {
+  async registerWithPhone(dto: RegisterWithPhoneDto): Promise<AuthResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: {
         phone: dto.phone,
