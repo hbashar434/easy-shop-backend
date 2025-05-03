@@ -17,6 +17,13 @@ export class AuthResponseDto {
       firstName: 'John',
       lastName: 'Doe',
       role: 'USER',
+      isEmailVerified: true,
+      isPhoneVerified: false,
+      isProfileComplete: false,
+      isActive: true,
+      lastLogin: '2024-03-20T12:00:00Z',
+      createdAt: '2024-03-20T12:00:00Z',
+      updatedAt: '2024-03-20T12:00:00Z',
     },
   })
   user: {
@@ -26,5 +33,12 @@ export class AuthResponseDto {
     firstName: string | null;
     lastName: string | null;
     role: Role;
+    isEmailVerified: boolean;
+    isPhoneVerified: boolean;
+    isProfileComplete: boolean;
+    isActive: boolean;
+    lastLogin: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
   };
 }
