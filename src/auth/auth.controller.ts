@@ -72,7 +72,7 @@ export class AuthController {
   loginWithEmailPassword(
     @Body() dto: EmailPasswordLoginDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithPassword(dto.email, dto.password);
+    return this.authService.loginWithEmailPassword(dto.email, dto.password);
   }
 
   @Post('email/otp/login')
@@ -85,7 +85,7 @@ export class AuthController {
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   loginWithEmailOtp(@Body() dto: EmailOtpLoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithOTP(dto.email, dto.verificationCode);
+    return this.authService.loginWithEmailOtp(dto.email, dto.verificationCode);
   }
 
   @Post('phone/code')
@@ -127,7 +127,7 @@ export class AuthController {
   loginWithPhonePassword(
     @Body() dto: PhonePasswordLoginDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithPassword(dto.phone, dto.password);
+    return this.authService.loginWithPhonePassword(dto.phone, dto.password);
   }
 
   @Post('phone/otp/login')
@@ -140,6 +140,31 @@ export class AuthController {
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   loginWithPhoneOtp(@Body() dto: PhoneOtpLoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithOTP(dto.phone, dto.verificationCode);
+    return this.authService.loginWithPhoneOtp(dto.phone, dto.verificationCode);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        refreshToken: {
+          type: 'string',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Tokens refreshed successfully',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
+  refreshTokens(
+    @Body('refreshToken') refreshToken: string,
+  ): Promise<AuthResponseDto> {
+    return this.authService.refreshTokens(refreshToken);
   }
 }
