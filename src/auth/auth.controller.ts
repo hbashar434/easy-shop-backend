@@ -23,6 +23,7 @@ import {
   RequestPasswordResetDto,
   ResetPasswordDto,
 } from './dto/reset-password.dto';
+import { VerifyEmailDto, VerifyPhoneDto } from './dto/verify.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -95,6 +96,49 @@ export class AuthController {
     return this.authService.loginWithEmailOtp(dto.email, dto.verificationCode);
   }
 
+  @Post('email/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email address' })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiOkResponse({ description: 'Email verified successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
+    return await this.authService.verifyEmail(dto.email, dto.code);
+  }
+
+  @Post('email/password/request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset via email' })
+  @ApiBody({ type: RequestPasswordResetDto })
+  @ApiOkResponse({ description: 'Reset code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid email' })
+  async requestEmailPasswordReset(
+    @Body('email') email: string,
+  ): Promise<{ message: string }> {
+    return this.authService.requestEmailPasswordReset(email);
+  }
+
+  @Post('email/password/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using email and reset code' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Password reset successful' })
+  @ApiBadRequestResponse({ description: 'Invalid or expired reset code' })
+  async resetEmailPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    if (!dto.email || !dto.code || !dto.newPassword) {
+      throw new BadRequestException(
+        'Email, code and new password are required',
+      );
+    }
+    return this.authService.emailPasswordReset(
+      dto.email,
+      dto.code,
+      dto.newPassword,
+    );
+  }
+
   @Post('phone/code')
   @ApiOperation({ summary: 'Start registration process with phone' })
   @ApiBody({ type: PhoneCodeDto })
@@ -150,62 +194,14 @@ export class AuthController {
     return this.authService.loginWithPhoneOtp(dto.phone, dto.verificationCode);
   }
 
-  @Post('refresh')
+  @Post('phone/verify')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token using refresh token' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        refreshToken: {
-          type: 'string',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        },
-      },
-    },
-  })
-  @ApiOkResponse({
-    description: 'Tokens refreshed successfully',
-    type: AuthResponseDto,
-  })
-  @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
-  refreshTokens(
-    @Body('refreshToken') refreshToken: string,
-  ): Promise<AuthResponseDto> {
-    return this.authService.refreshTokens(refreshToken);
-  }
-
-  @Post('email/password/request')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request password reset via email' })
-  @ApiBody({ type: RequestPasswordResetDto })
-  @ApiOkResponse({ description: 'Reset code sent successfully' })
-  @ApiBadRequestResponse({ description: 'Invalid email' })
-  async requestEmailPasswordReset(
-    @Body('email') email: string,
-  ): Promise<{ message: string }> {
-    return this.authService.requestEmailPasswordReset(email);
-  }
-
-  @Post('email/password/reset')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password using email and reset code' })
-  @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse({ description: 'Password reset successful' })
-  @ApiBadRequestResponse({ description: 'Invalid or expired reset code' })
-  async resetEmailPassword(
-    @Body() dto: ResetPasswordDto,
-  ): Promise<{ message: string }> {
-    if (!dto.email || !dto.code || !dto.newPassword) {
-      throw new BadRequestException(
-        'Email, code and new password are required',
-      );
-    }
-    return this.authService.emailPasswordReset(
-      dto.email,
-      dto.code,
-      dto.newPassword,
-    );
+  @ApiOperation({ summary: 'Verify phone number' })
+  @ApiBody({ type: VerifyPhoneDto })
+  @ApiOkResponse({ description: 'Phone number verified successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  async verifyPhone(@Body() dto: VerifyPhoneDto): Promise<{ message: string }> {
+    return await this.authService.verifyPhone(dto.phone, dto.code);
   }
 
   @Post('phone/password/request')
@@ -239,5 +235,30 @@ export class AuthController {
       dto.code,
       dto.newPassword,
     );
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        refreshToken: {
+          type: 'string',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Tokens refreshed successfully',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
+  refreshTokens(
+    @Body('refreshToken') refreshToken: string,
+  ): Promise<AuthResponseDto> {
+    return this.authService.refreshTokens(refreshToken);
   }
 }
