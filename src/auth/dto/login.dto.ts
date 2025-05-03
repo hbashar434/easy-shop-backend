@@ -36,7 +36,7 @@ export class EmailOtpLoginDto {
   @Matches(/^\d{6}$/, {
     message: 'Verification code must be 6 digits',
   })
-  verificationCode?: string;
+  code: string;
 }
 
 export class PhonePasswordLoginDto {
@@ -82,5 +82,5 @@ export class PhoneOtpLoginDto {
   @Matches(/^\d{6}$/, {
     message: 'Verification code must be 6 digits',
   })
-  verificationCode?: string;
+  code: string;
 }

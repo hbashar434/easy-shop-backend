@@ -30,6 +30,7 @@ export class AuthResponseDto {
       lastLogin: '2024-03-20T12:00:00Z',
       createdAt: '2024-03-20T12:00:00Z',
       updatedAt: '2024-03-20T12:00:00Z',
+      deletedAt: '2024-03-20T12:00:00Z',
     },
   })
   user: {
@@ -46,5 +47,6 @@ export class AuthResponseDto {
     lastLogin: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    deletedAt: Date | null;
   };
 }
