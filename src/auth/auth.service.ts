@@ -611,4 +611,60 @@ export class AuthService {
 
     return { message: 'Password reset successful' };
   }
+
+  async verifyEmail(email: string, code: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email,
+        verificationToken: code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      },
+    });
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async verifyPhone(phone: string, code: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        phone,
+        verificationToken: code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isPhoneVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      },
+    });
+
+    return { message: 'Phone number verified successfully' };
+  }
 }
