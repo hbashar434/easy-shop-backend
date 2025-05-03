@@ -1,10 +1,10 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  InitiateEmailRegisterDto,
-  InitiatePhoneRegisterDto,
-  CompleteEmailRegisterDto,
-  CompletePhoneRegisterDto,
+  EmailCodeDto,
+  PhoneCodeDto,
+  RegisterWithEmailDto,
+  RegisterWithPhoneDto,
 } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import {
@@ -30,58 +30,54 @@ export class AuthController {
 
   @Post('email/code')
   @ApiOperation({ summary: 'Start registration process with email' })
-  @ApiBody({ type: InitiateEmailRegisterDto })
+  @ApiBody({ type: EmailCodeDto })
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiConflictResponse({ description: 'Email already registered' })
-  initiateEmailRegister(
-    @Body() dto: InitiateEmailRegisterDto,
-  ): Promise<{ message: string }> {
-    return this.authService.initiateEmailRegister(dto);
+  sendEmailCode(@Body() dto: EmailCodeDto): Promise<{ message: string }> {
+    return this.authService.sendEmailCode(dto);
   }
 
   @Post('email/register')
   @ApiOperation({
     summary: 'Complete email registration with verification code',
   })
-  @ApiBody({ type: CompleteEmailRegisterDto })
+  @ApiBody({ type: RegisterWithEmailDto })
   @ApiCreatedResponse({
     description: 'User successfully registered',
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid verification code' })
-  completeEmailRegister(
-    @Body() dto: CompleteEmailRegisterDto,
+  registerWithEmail(
+    @Body() dto: RegisterWithEmailDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.completeEmailRegister(dto);
+    return this.authService.registerWithEmail(dto);
   }
 
   @Post('phone/code')
   @ApiOperation({ summary: 'Start registration process with phone' })
-  @ApiBody({ type: InitiatePhoneRegisterDto })
+  @ApiBody({ type: PhoneCodeDto })
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiConflictResponse({ description: 'Phone number already registered' })
-  initiatePhoneRegister(
-    @Body() dto: InitiatePhoneRegisterDto,
-  ): Promise<{ message: string }> {
-    return this.authService.initiatePhoneRegister(dto);
+  sendPhoneCode(@Body() dto: PhoneCodeDto): Promise<{ message: string }> {
+    return this.authService.sendPhoneCode(dto);
   }
 
   @Post('phone/register')
   @ApiOperation({
     summary: 'Complete phone registration with verification code',
   })
-  @ApiBody({ type: CompletePhoneRegisterDto })
+  @ApiBody({ type: RegisterWithPhoneDto })
   @ApiCreatedResponse({
     description: 'User successfully registered',
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid verification code' })
-  completePhoneRegister(
-    @Body() dto: CompletePhoneRegisterDto,
+  registerWithPhone(
+    @Body() dto: RegisterWithPhoneDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.completePhoneRegister(dto);
+    return this.authService.registerWithPhone(dto);
   }
 
   @Post('login/password')
