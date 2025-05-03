@@ -1,36 +1,86 @@
-import { IsString, MinLength, Matches, IsOptional } from 'class-validator';
+import { IsString, MinLength, IsEmail, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class LoginDto {
+export class EmailPasswordLoginDto {
   @ApiProperty({
-    example: 'user@example.com or +8801712345678',
-    description: 'User email address or phone number',
+    example: 'user@example.com',
+    description: 'User email address',
   })
-  @IsString()
-  @Matches(/^[^\s@]+@[^\s@]+\.[^\s@]+$|^\+[1-9]\d{1,14}$/, {
-    message: 'Please provide a valid email address or phone number',
-  })
-  identifier: string;
+  @IsEmail()
+  email: string;
 
   @ApiProperty({
     example: 'password123',
-    description: 'User password - required for password login',
-    required: false,
+    description: 'User password',
+    minLength: 8,
   })
   @IsString()
   @MinLength(8)
-  @IsOptional()
-  password?: string;
+  password: string;
+}
+
+export class EmailOtpLoginDto {
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email address',
+  })
+  @IsEmail()
+  email: string;
 
   @ApiProperty({
     example: '123456',
-    description: 'Verification code - required for OTP login',
+    description: 'Verification code (6 digits)',
     required: false,
   })
   @IsString()
   @Matches(/^\d{6}$/, {
     message: 'Verification code must be 6 digits',
   })
-  @IsOptional()
+  verificationCode?: string;
+}
+
+export class PhonePasswordLoginDto {
+  @ApiProperty({
+    example: '+8801712345678',
+    description: 'Phone number in international format',
+  })
+  @IsString()
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  phone: string;
+
+  @ApiProperty({
+    example: 'password123',
+    description: 'User password',
+    minLength: 8,
+  })
+  @IsString()
+  @MinLength(8)
+  password: string;
+}
+
+export class PhoneOtpLoginDto {
+  @ApiProperty({
+    example: '+8801712345678',
+    description: 'Phone number in international format',
+  })
+  @IsString()
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  phone: string;
+
+  @ApiProperty({
+    example: '123456',
+    description: 'Verification code (6 digits)',
+    required: false,
+  })
+  @IsString()
+  @Matches(/^\d{6}$/, {
+    message: 'Verification code must be 6 digits',
+  })
   verificationCode?: string;
 }
