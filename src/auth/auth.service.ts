@@ -12,7 +12,6 @@ import {
   RegisterWithEmailDto,
   RegisterWithPhoneDto,
 } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 import {
   RequestPasswordResetDto,
   ResetPasswordDto,
@@ -380,66 +379,5 @@ export class AuthService {
     });
 
     return this.createUserResponse(user);
-  }
-
-  async requestPasswordReset(dto: RequestPasswordResetDto): Promise<void> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: dto.email }, { phone: dto.phone }],
-      },
-    });
-
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-
-    const resetCode = this.generateVerificationCode();
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetPasswordToken: resetCode,
-        resetPasswordExpires: this.getVerificationExpiry(),
-      },
-    });
-
-    if (user.email) {
-      await this.mailService.sendMails({
-        to: user.email,
-        subject: 'Password Reset Request',
-        template: 'reset-password',
-        context: {
-          name: user.firstName || 'User',
-          resetToken: resetCode,
-        },
-      });
-    }
-    // SMS implementation for phone reset will be added later
-  }
-
-  async resetPassword(dto: ResetPasswordDto): Promise<void> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: dto.email }, { phone: dto.phone }],
-        resetPasswordToken: dto.code,
-      },
-    });
-
-    if (!user) {
-      throw new BadRequestException('Invalid reset code');
-    }
-
-    if (!user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
-      throw new BadRequestException('Reset code expired');
-    }
-
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-      },
-    });
   }
 }

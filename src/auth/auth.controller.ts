@@ -6,7 +6,12 @@ import {
   RegisterWithEmailDto,
   RegisterWithPhoneDto,
 } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import {
+  EmailPasswordLoginDto,
+  EmailOtpLoginDto,
+  PhonePasswordLoginDto,
+  PhoneOtpLoginDto,
+} from './dto/login.dto';
 import {
   RequestPasswordResetDto,
   ResetPasswordDto,
@@ -54,6 +59,35 @@ export class AuthController {
     return this.authService.registerWithEmail(dto);
   }
 
+  @Post('email/password/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: EmailPasswordLoginDto })
+  @ApiOkResponse({
+    description: 'User successfully logged in',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  loginWithEmailPassword(
+    @Body() dto: EmailPasswordLoginDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.loginWithPassword(dto.email, dto.password);
+  }
+
+  @Post('email/otp/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with email and OTP' })
+  @ApiBody({ type: EmailOtpLoginDto })
+  @ApiOkResponse({
+    description: 'User successfully logged in or verification code sent',
+    type: AuthResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  loginWithEmailOtp(@Body() dto: EmailOtpLoginDto): Promise<AuthResponseDto> {
+    return this.authService.loginWithOTP(dto.email, dto.verificationCode);
+  }
+
   @Post('phone/code')
   @ApiOperation({ summary: 'Start registration process with phone' })
   @ApiBody({ type: PhoneCodeDto })
@@ -80,55 +114,32 @@ export class AuthController {
     return this.authService.registerWithPhone(dto);
   }
 
-  @Post('login/password')
-  @ApiOperation({ summary: 'Login with password' })
-  @ApiBody({ type: LoginDto })
+  @Post('phone/password/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with phone and password' })
+  @ApiBody({ type: PhonePasswordLoginDto })
   @ApiOkResponse({
     description: 'User successfully logged in',
     type: AuthResponseDto,
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithPassword(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithPassword(
-      loginDto.identifier,
-      loginDto.password,
-    );
+  loginWithPhonePassword(
+    @Body() dto: PhonePasswordLoginDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.loginWithPassword(dto.phone, dto.password);
   }
 
-  @Post('login/otp')
-  @ApiOperation({ summary: 'Login with OTP' })
-  @ApiBody({ type: LoginDto })
+  @Post('phone/otp/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with phone and OTP' })
+  @ApiBody({ type: PhoneOtpLoginDto })
   @ApiOkResponse({
     description: 'User successfully logged in or verification code sent',
     type: AuthResponseDto,
   })
-  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithOTP(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithOTP(
-      loginDto.identifier,
-      loginDto.verificationCode,
-    );
-  }
-
-  @Post('password/reset/request')
-  @ApiOperation({ summary: 'Request password reset code' })
-  @ApiBody({ type: RequestPasswordResetDto })
-  @ApiOkResponse({ description: 'Reset code sent successfully' })
-  @ApiBadRequestResponse({
-    description: 'Invalid email/phone or user not found',
-  })
-  requestPasswordReset(@Body() dto: RequestPasswordResetDto): Promise<void> {
-    return this.authService.requestPasswordReset(dto);
-  }
-
-  @Post('password/reset')
-  @ApiOperation({ summary: 'Reset password with code' })
-  @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse({ description: 'Password reset successfully' })
-  @ApiBadRequestResponse({ description: 'Invalid code or expired' })
-  resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
-    return this.authService.resetPassword(dto);
+  loginWithPhoneOtp(@Body() dto: PhoneOtpLoginDto): Promise<AuthResponseDto> {
+    return this.authService.loginWithOTP(dto.phone, dto.verificationCode);
   }
 }
