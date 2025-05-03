@@ -476,4 +476,139 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
+
+  async requestEmailPasswordReset(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('No account found with this email');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new BadRequestException('Email is not verified');
+    }
+
+    const resetCode = this.generateVerificationCode();
+    const resetExpiry = this.getVerificationExpiry();
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetCode,
+        resetPasswordExpires: resetExpiry,
+      },
+    });
+
+    await this.mailService.sendMails({
+      to: email,
+      subject: 'Password Reset Request',
+      template: 'reset-password',
+      context: {
+        name: user.firstName || 'User',
+        resetToken: resetCode,
+      },
+    });
+
+    return { message: 'Reset code sent successfully to your email' };
+  }
+
+  async emailPasswordReset(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email,
+        resetPasswordToken: code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid reset code');
+    }
+
+    if (!user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
+      throw new BadRequestException('Reset code has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    return { message: 'Password reset successful' };
+  }
+
+  async requestPhonePasswordReset(phone: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      throw new BadRequestException('No account found with this phone number');
+    }
+
+    if (!user.isPhoneVerified) {
+      throw new BadRequestException('Phone number is not verified');
+    }
+
+    const resetCode = this.generateVerificationCode();
+    const resetExpiry = this.getVerificationExpiry();
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetCode,
+        resetPasswordExpires: resetExpiry,
+      },
+    });
+
+    // TODO: Implement SMS service integration
+    console.log(`SMS reset code for ${phone}: ${resetCode}`);
+
+    return { message: 'Reset code sent successfully to your phone' };
+  }
+
+  async phonePasswordReset(
+    phone: string,
+    code: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        phone,
+        resetPasswordToken: code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid reset code');
+    }
+
+    if (!user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
+      throw new BadRequestException('Reset code has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    return { message: 'Password reset successful' };
+  }
 }
