@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsEnum,
   Matches,
+  IsObject,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { SmsPriority } from '../interfaces/sms.interface';
@@ -24,10 +25,29 @@ export class SendSmsDto {
   @ApiProperty({
     example: 'Your verification code is: 123456',
     description: 'SMS content',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content?: string;
+
+  @ApiProperty({
+    example: 'verification-code',
+    description: 'Template name to use',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  template?: string;
+
+  @ApiProperty({
+    example: { name: 'John', code: '123456', expiresIn: 10 },
+    description: 'Template context data',
+    required: false,
+  })
+  @IsObject()
+  @IsOptional()
+  context?: Record<string, unknown>;
 
   @ApiProperty({
     enum: ['high', 'normal', 'low'],

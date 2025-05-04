@@ -20,6 +20,7 @@ import {
 } from './dto/reset-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailService } from '../common/mail/mail.service';
+import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
@@ -38,6 +39,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private smsService: SmsService,
     private configService: ConfigService,
   ) {}
 
@@ -133,7 +135,7 @@ export class AuthService {
         context: {
           name: existingUser.firstName || 'User',
           verificationCode,
-          expiresIn: 10,
+          expiresIn: 5,
         },
       });
 
@@ -158,7 +160,7 @@ export class AuthService {
       context: {
         name: 'User',
         verificationCode,
-        expiresIn: 10,
+        expiresIn: 5,
       },
     });
 
@@ -400,12 +402,17 @@ export class AuthService {
         },
       });
 
-      // TODO: Implement SMS service integration
-      console.log(
-        `SMS verification code for ${dto.phone}: ${verificationCode}`,
-      );
+      await this.smsService.sendMessages({
+        to: dto.phone,
+        template: 'verification-code',
+        context: {
+          name: existingUser.firstName || 'User',
+          code: verificationCode,
+          expiresIn: 5,
+        },
+      });
 
-      return { message: 'New verification code sent successfully' };
+      return { message: 'Verification code sent successfully' };
     }
 
     // New user registration
@@ -419,8 +426,15 @@ export class AuthService {
       },
     });
 
-    // TODO: Implement SMS service integration
-    console.log(`SMS verification code for ${dto.phone}: ${verificationCode}`);
+    await this.smsService.sendMessages({
+      to: dto.phone,
+      template: 'verification-code',
+      context: {
+        name: 'User',
+        code: verificationCode,
+        expiresIn: 5,
+      },
+    });
 
     return { message: 'Verification code sent successfully' };
   }
@@ -513,7 +527,43 @@ export class AuthService {
     }
 
     if (!dto.code) {
-      throw new BadRequestException('Verification code is required');
+      // Generate and send new OTP
+      const verificationCode = this.generateVerificationCode();
+      const verificationExpires = this.getVerificationExpiry();
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          verificationToken: verificationCode,
+          verificationExpires,
+        },
+      });
+
+      await this.smsService.sendMessages({
+        to: dto.phone,
+        template: 'verification-code',
+        context: {
+          name: user.firstName || 'User',
+          code: verificationCode,
+          expiresIn: 5,
+        },
+      });
+
+      const {
+        password,
+        verificationToken,
+        verificationExpires: expires,
+        resetPasswordToken,
+        resetPasswordExpires,
+        refreshToken,
+        ...userWithoutSensitive
+      } = user;
+
+      return {
+        accessToken: '',
+        refreshToken: '',
+        user: userWithoutSensitive,
+      };
     }
 
     // Verify the code
@@ -565,8 +615,15 @@ export class AuthService {
       },
     });
 
-    // TODO: Implement SMS service integration
-    console.log(`SMS reset code for ${dto.phone}: ${resetCode}`);
+    await this.smsService.sendMessages({
+      to: dto.phone,
+      template: 'reset-password',
+      context: {
+        name: user.firstName || 'User',
+        code: resetCode,
+        expiresIn: 5,
+      },
+    });
 
     return { message: 'Reset code sent successfully to your phone' };
   }
