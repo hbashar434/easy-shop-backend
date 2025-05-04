@@ -5,7 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
+
 import { AuthService } from './auth.service';
 import {
   EmailCodeDto,
@@ -36,6 +39,7 @@ import {
   ApiConflictResponse,
   ApiBadRequestResponse,
   ApiExcludeEndpoint,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import {
@@ -47,6 +51,8 @@ import {
   RequestPasswordResetDto,
   ResetPasswordDto,
 } from './dto/unified-auth.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RequestWithUser } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -261,6 +267,16 @@ export class AuthController {
     @Body('refreshToken') refreshToken: string,
   ): Promise<AuthResponseDto> {
     return this.authService.refreshTokens(refreshToken);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiOkResponse({ description: 'User logged out successfully' })
+  @ApiBearerAuth()
+  async logout(@Request() req: RequestWithUser): Promise<{ message: string }> {
+    return this.authService.logout(req.user.id);
   }
 
   /////////////////////////////////////////////////////////////////
