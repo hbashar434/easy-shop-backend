@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Length, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  Length,
+  IsOptional,
+  Matches,
+} from 'class-validator';
 
 export class RequestEmailVerificationDto {
   @ApiProperty({
@@ -17,6 +23,27 @@ export class VerifyEmailDto {
   })
   @IsEmail()
   email: string;
+
+  @ApiProperty({
+    example: '123456',
+    description: 'Verification code (6 digits)',
+  })
+  @IsString()
+  @Length(6, 6)
+  code: string;
+}
+
+export class VerifyPhoneDto {
+  @ApiProperty({
+    example: '+8801712345678',
+    description: 'Phone number to verify',
+  })
+  @IsString()
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  phone: string;
 
   @ApiProperty({
     example: '123456',

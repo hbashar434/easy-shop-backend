@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -22,7 +22,7 @@ model User {
   lastName               String?   @db.VarChar(50)
   role                   Role      @default(USER)
   isActive               Boolean   @default(true)
-
+  isProfileComplete      Boolean   @default(false)
   isEmailVerified        Boolean   @default(false)          // Email verified
   isPhoneVerified        Boolean   @default(false)          // Phone verified
   verificationToken      String?   @db.VarChar(6)           // For OTP verification

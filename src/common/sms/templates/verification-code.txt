@@ -1,0 +1,5 @@
+Hello {{name}},
+Your verification code is: {{code}}
+This code will expire in {{expiresIn}} minutes.
+
+My Shop
