@@ -16,7 +16,7 @@ export class SmsController {
   constructor(private readonly smsService: SmsService) {}
 
   @Get('test-single')
-  @ApiOperation({ summary: 'Test single SMS sending' })
+  @ApiOperation({ summary: 'Test single SMS sending with template' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Test SMS sent successfully',
@@ -25,7 +25,12 @@ export class SmsController {
     try {
       const smsDto: SendSmsDto = {
         to: '8801613506705',
-        content: 'Test SMS from My Shop',
+        template: 'verification-code',
+        context: {
+          name: 'Test User',
+          code: '123456',
+          expiresIn: 10,
+        },
         priority: 'high',
       };
 
@@ -44,7 +49,7 @@ export class SmsController {
   }
 
   @Get('test-bulk')
-  @ApiOperation({ summary: 'Test bulk SMS sending' })
+  @ApiOperation({ summary: 'Test bulk SMS sending with templates' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Test bulk SMS sent successfully',
@@ -55,12 +60,22 @@ export class SmsController {
         messages: [
           {
             to: '8801613506705',
-            content: 'Test SMS 1 from My Shop',
+            template: 'verification-code',
+            context: {
+              name: 'Test User 1',
+              code: '123456',
+              expiresIn: 10,
+            },
             priority: 'normal',
           },
           {
             to: '8801866307230',
-            content: 'Test SMS 2 from My Shop',
+            template: 'reset-password',
+            context: {
+              name: 'Test User 2',
+              code: '654321',
+              expiresIn: 10,
+            },
             priority: 'normal',
           },
         ],

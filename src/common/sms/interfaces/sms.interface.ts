@@ -2,7 +2,9 @@ export type SmsPriority = 'high' | 'normal' | 'low';
 
 export interface SmsData {
   to: string;
-  content: string;
+  content?: string;
+  template?: string;
+  context?: Record<string, any>;
   priority?: SmsPriority;
 }
 

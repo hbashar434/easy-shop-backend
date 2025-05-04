@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   SmsData,
   SmsPriority,
@@ -21,6 +23,7 @@ export class SmsService {
   private readonly DEFAULT_CHUNK_SIZE = 10;
   private readonly MAX_RETRIES = 3;
   private isRedisAvailable = true;
+  private readonly templatesDir: string;
 
   constructor(
     @InjectQueue('sms') private readonly smsQueue: Queue,
@@ -31,6 +34,15 @@ export class SmsService {
 
     const onlyNumbersStr = this.configService.get<string>('SMS_ONLY_NUMBERS');
     this.onlyNumbers = onlyNumbersStr ? onlyNumbersStr.split(',') : [];
+
+    // Set up templates directory
+    this.templatesDir = path.join(
+      process.cwd(),
+      'src',
+      'common',
+      'sms',
+      'templates',
+    );
 
     void this.initializeService();
   }
@@ -167,16 +179,87 @@ export class SmsService {
     response.metrics.processingTime = Date.now() - response.metrics.startTime;
   }
 
+  private async loadTemplate(templateName: string): Promise<string> {
+    const templatePath = path.join(this.templatesDir, `${templateName}.txt`);
+    try {
+      return await fs.promises.readFile(templatePath, 'utf-8');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to load template ${templateName}: ${errorMessage}`,
+      );
+      throw new Error(`Template ${templateName} not found`);
+    }
+  }
+
+  private stringifyValue(value: unknown): string {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '';
+      }
+    }
+
+    return '';
+  }
+
+  private compileTemplate(
+    template: string,
+    context: Record<string, unknown>,
+  ): string {
+    return template.replace(
+      /\{\{([^}]+)\}\}/g,
+      (match: string, key: string) => {
+        const trimmedKey = key.trim();
+        const value = context[trimmedKey];
+
+        return value !== undefined
+          ? this.stringifyValue(value)
+          : `{{${trimmedKey}}}`;
+      },
+    );
+  }
+
   private async sendDirectMessage(sms: SmsData): Promise<void> {
     try {
+      let content: string;
+
+      // If template is specified, load and compile it
+      if (sms.template) {
+        const template = await this.loadTemplate(sms.template);
+        content = this.compileTemplate(template, sms.context || {});
+      } else if (sms.content) {
+        content = sms.content;
+      } else {
+        throw new Error('No content or template provided');
+      }
+
       const apiKey = this.configService.get<string>('SMS_API_KEY');
-      const apiUrl = `http://portal.jadusms.com/smsapi/non-masking?api_key=${apiKey}&smsType=text&mobileNo=${sms.to}&smsContent=${encodeURIComponent(sms.content)}`;
+      if (!apiKey) {
+        throw new Error('SMS API key is not configured');
+      }
+
+      const apiUrl = `http://portal.jadusms.com/smsapi/non-masking?api_key=${apiKey}&smsType=text&mobileNo=${sms.to}&smsContent=${encodeURIComponent(content)}`;
 
       const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      await response.text(); // Read and discard response body
+      await response.text();
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
