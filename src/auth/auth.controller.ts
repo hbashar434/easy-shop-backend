@@ -7,6 +7,7 @@ import {
   BadRequestException,
   UseGuards,
   Request,
+  Get,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
@@ -279,6 +280,16 @@ export class AuthController {
     return this.authService.logout(req.user.id);
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get authenticated user information' })
+  @ApiOkResponse({ description: 'User information retrieved successfully' })
+  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
+  @ApiBearerAuth()
+  async getCurrentUser(@Request() req: RequestWithUser) {
+    return await this.authService.getCurrentUser(req.user.id);
+  }
+
   /////////////////////////////////////////////////////////////////
   // TODO: From this point onward, all APIs are excluded from Swagger using @ApiExcludeEndpoint().
   // These endpoints are internal/special-case APIs. They are not part of the main unified API
@@ -292,8 +303,8 @@ export class AuthController {
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiConflictResponse({ description: 'Email already registered' })
-  sendEmailCode(@Body() dto: EmailCodeDto): Promise<{ message: string }> {
-    return this.authService.sendEmailCode(dto);
+  async sendEmailCode(@Body() dto: EmailCodeDto): Promise<{ message: string }> {
+    return await this.authService.sendEmailCode(dto);
   }
 
   @ApiExcludeEndpoint()
@@ -307,10 +318,10 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid verification code' })
-  registerWithEmail(
+  async registerWithEmail(
     @Body() dto: RegisterWithEmailDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.registerWithEmail(dto);
+    return await this.authService.registerWithEmail(dto);
   }
   @ApiExcludeEndpoint()
   @Post('email/password/login')
@@ -323,10 +334,10 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithEmailPassword(
+  async loginWithEmailPassword(
     @Body() dto: EmailPasswordLoginDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithEmailPassword(dto);
+    return await this.authService.loginWithEmailPassword(dto);
   }
   @ApiExcludeEndpoint()
   @Post('email/otp/login')
@@ -338,8 +349,10 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithEmailOtp(@Body() dto: EmailOtpLoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithEmailOtp(dto);
+  async loginWithEmailOtp(
+    @Body() dto: EmailOtpLoginDto,
+  ): Promise<AuthResponseDto> {
+    return await this.authService.loginWithEmailOtp(dto);
   }
   @ApiExcludeEndpoint()
   @Post('email/verify')
@@ -361,7 +374,7 @@ export class AuthController {
   async requestEmailPasswordReset(
     @Body() dto: RequestEmailPasswordResetDto,
   ): Promise<{ message: string }> {
-    return this.authService.requestEmailPasswordReset(dto);
+    return await this.authService.requestEmailPasswordReset(dto);
   }
   @ApiExcludeEndpoint()
   @Post('email/password/reset')
@@ -373,7 +386,7 @@ export class AuthController {
   async resetEmailPassword(
     @Body() dto: ResetEmailPasswordDto,
   ): Promise<{ message: string }> {
-    return this.authService.emailPasswordReset(dto);
+    return await this.authService.emailPasswordReset(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/code')
@@ -382,8 +395,8 @@ export class AuthController {
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiConflictResponse({ description: 'Phone number already registered' })
-  sendPhoneCode(@Body() dto: PhoneCodeDto): Promise<{ message: string }> {
-    return this.authService.sendPhoneCode(dto);
+  async sendPhoneCode(@Body() dto: PhoneCodeDto): Promise<{ message: string }> {
+    return await this.authService.sendPhoneCode(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/register')
@@ -396,10 +409,10 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid verification code' })
-  registerWithPhone(
+  async registerWithPhone(
     @Body() dto: RegisterWithPhoneDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.registerWithPhone(dto);
+    return await this.authService.registerWithPhone(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/password/login')
@@ -412,10 +425,10 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithPhonePassword(
+  async loginWithPhonePassword(
     @Body() dto: PhonePasswordLoginDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithPhonePassword(dto);
+    return await this.authService.loginWithPhonePassword(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/otp/login')
@@ -427,8 +440,10 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  loginWithPhoneOtp(@Body() dto: PhoneOtpLoginDto): Promise<AuthResponseDto> {
-    return this.authService.loginWithPhoneOtp(dto);
+  async loginWithPhoneOtp(
+    @Body() dto: PhoneOtpLoginDto,
+  ): Promise<AuthResponseDto> {
+    return await this.authService.loginWithPhoneOtp(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/verify')
@@ -450,7 +465,7 @@ export class AuthController {
   async requestPhonePasswordReset(
     @Body() dto: RequestPhonePasswordResetDto,
   ): Promise<{ message: string }> {
-    return this.authService.requestPhonePasswordReset(dto);
+    return await this.authService.requestPhonePasswordReset(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/password/reset')
@@ -462,7 +477,7 @@ export class AuthController {
   async resetPhonePassword(
     @Body() dto: ResetPhonePasswordDto,
   ): Promise<{ message: string }> {
-    return this.authService.phonePasswordReset(dto);
+    return await this.authService.phonePasswordReset(dto);
   }
 
   /////////////////////////////////////////////////////////////////
