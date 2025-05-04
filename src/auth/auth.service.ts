@@ -135,7 +135,7 @@ export class AuthService {
         context: {
           name: existingUser.firstName || 'User',
           verificationCode,
-          expiresIn: 5,
+          expiresIn: 2,
         },
       });
 
@@ -160,7 +160,7 @@ export class AuthService {
       context: {
         name: 'User',
         verificationCode,
-        expiresIn: 5,
+        expiresIn: 2,
       },
     });
 
@@ -408,7 +408,7 @@ export class AuthService {
         context: {
           name: existingUser.firstName || 'User',
           code: verificationCode,
-          expiresIn: 5,
+          expiresIn: 2,
         },
       });
 
@@ -432,7 +432,7 @@ export class AuthService {
       context: {
         name: 'User',
         code: verificationCode,
-        expiresIn: 5,
+        expiresIn: 2,
       },
     });
 
@@ -545,7 +545,7 @@ export class AuthService {
         context: {
           name: user.firstName || 'User',
           code: verificationCode,
-          expiresIn: 5,
+          expiresIn: 2,
         },
       });
 
@@ -621,7 +621,7 @@ export class AuthService {
       context: {
         name: user.firstName || 'User',
         code: resetCode,
-        expiresIn: 5,
+        expiresIn: 2,
       },
     });
 
