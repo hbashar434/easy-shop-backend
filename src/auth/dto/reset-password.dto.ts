@@ -1,46 +1,64 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsString,
-  Length,
-  MinLength,
-  IsOptional,
-} from 'class-validator';
+import { IsEmail, IsString, Length, MinLength, Matches } from 'class-validator';
 
-export class RequestPasswordResetDto {
+export class RequestEmailPasswordResetDto {
   @ApiProperty({
     example: 'user@example.com',
-    description: 'Email address',
+    description: 'Email address to send reset code to',
   })
   @IsEmail()
-  @IsOptional()
-  email?: string;
-
-  @ApiProperty({
-    example: '+8801712345678',
-    description: 'Phone number',
-  })
-  @IsString()
-  @IsOptional()
-  phone?: string;
+  email: string;
 }
 
-export class ResetPasswordDto {
+export class ResetEmailPasswordDto {
   @ApiProperty({
     example: 'user@example.com',
     description: 'Email address',
   })
   @IsEmail()
-  @IsOptional()
-  email?: string;
+  email: string;
 
+  @ApiProperty({
+    example: '123456',
+    description: 'Reset password code (6 digits)',
+  })
+  @IsString()
+  @Length(6, 6)
+  code: string;
+
+  @ApiProperty({
+    example: 'newPassword123',
+    description: 'New password - minimum 8 characters',
+  })
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
+}
+
+export class RequestPhonePasswordResetDto {
+  @ApiProperty({
+    example: '+8801712345678',
+    description: 'Phone number to send reset code to',
+  })
+  @IsString()
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  phone: string;
+}
+
+export class ResetPhonePasswordDto {
   @ApiProperty({
     example: '+8801712345678',
     description: 'Phone number',
   })
   @IsString()
-  @IsOptional()
-  phone?: string;
+  @Matches(/^\+[1-9]\d{1,14}$/, {
+    message:
+      'Phone number must be in international format (e.g., +8801712345678)',
+  })
+  phone: string;
 
   @ApiProperty({
     example: '123456',

@@ -6,20 +6,32 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { PhoneRegisterDto } from './dto/phone-register.dto';
 import {
-  RequestEmailVerificationDto,
-  VerifyEmailDto,
-} from './dto/verify-email.dto';
+  EmailCodeDto,
+  PhoneCodeDto,
+  RegisterWithEmailDto,
+  RegisterWithPhoneDto,
+} from './dto/register.dto';
 import {
-  RequestPasswordResetDto,
-  ResetPasswordDto,
+  RequestEmailPasswordResetDto,
+  ResetEmailPasswordDto,
+  RequestPhonePasswordResetDto,
+  ResetPhonePasswordDto,
 } from './dto/reset-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailService } from '../common/mail/mail.service';
+import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
+import { User } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { JwtPayloadType, SafeUser } from './interfaces/auth.interface';
+import {
+  EmailOtpLoginDto,
+  EmailPasswordLoginDto,
+  PhoneOtpLoginDto,
+  PhonePasswordLoginDto,
+} from './dto/login.dto';
+import { VerifyEmailDto, VerifyPhoneDto } from './dto/verify.dto';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +39,8 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private smsService: SmsService,
+    private configService: ConfigService,
   ) {}
 
   private generateVerificationCode(): string {
@@ -37,197 +51,321 @@ export class AuthService {
     return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   }
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  private generateTokens(user: User) {
+    const accessPayload: JwtPayloadType = {
+      sub: user.id,
+      email: user.email ?? '',
+      role: user.role,
+    };
+
+    const refreshPayload: Pick<JwtPayloadType, 'sub'> = {
+      sub: user.id,
+    };
+
+    const accessToken = this.jwtService.sign(accessPayload, {
+      secret: this.configService.get('JWT_ACCESS_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES_IN', '1d'),
+    });
+
+    const refreshToken = this.jwtService.sign(refreshPayload, {
+      secret: this.configService.get('JWT_REFRESH_SECRET'),
+      expiresIn: '7d',
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  private async updateUserTokens(userId: string, refreshToken: string | null) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken,
+        lastLogin: new Date(),
+      },
+    });
+  }
+
+  private createUserResponse(user: User): AuthResponseDto {
+    const {
+      password,
+      verificationToken,
+      verificationExpires,
+      resetPasswordToken,
+      resetPasswordExpires,
+      refreshToken,
+      ...userWithoutSensitive
+    } = user;
+
+    const tokens = this.generateTokens(user);
+
+    // Update user with refresh token and lastLogin
+    void this.updateUserTokens(user.id, tokens.refreshToken);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: userWithoutSensitive,
+    };
+  }
+
+  async sendEmailCode(dto: EmailCodeDto): Promise<{ message: string }> {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: registerDto.email },
+      where: { email: dto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('Email already registered');
+      if (existingUser.isEmailVerified) {
+        throw new ConflictException('Email is already registered and verified');
+      }
+
+      // User exists but not verified, send new verification code
+      const verificationCode = this.generateVerificationCode();
+      await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          verificationToken: verificationCode,
+          verificationExpires: this.getVerificationExpiry(),
+        },
+      });
+
+      await this.mailService.sendMails({
+        to: dto.email,
+        subject: 'Complete Your Registration',
+        template: 'verification-code',
+        context: {
+          name: existingUser.firstName || 'User',
+          verificationCode,
+          expiresIn: 2,
+        },
+      });
+
+      return { message: 'New verification code sent successfully' };
     }
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    // New user registration
     const verificationCode = this.generateVerificationCode();
-
-    const user = await this.prisma.user.create({
+    await this.prisma.user.create({
       data: {
-        ...registerDto,
-        password: hashedPassword,
+        email: dto.email,
         verificationToken: verificationCode,
         verificationExpires: this.getVerificationExpiry(),
+        password: '', // Required by Prisma schema
       },
     });
 
-    if (!user.email) {
-      throw new BadRequestException('Email is required for registration');
-    }
-
-    await this.mailService.sendMail({
-      to: user.email,
-      subject: 'Welcome to MyShop - Verify Your Email',
+    await this.mailService.sendMails({
+      to: dto.email,
+      subject: 'Complete Your Registration',
       template: 'verification-code',
       context: {
-        name: user.firstName || 'User',
+        name: 'User',
         verificationCode,
-        expiresIn: 10,
+        expiresIn: 2,
       },
     });
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const {
-      password,
-      verificationToken,
-      verificationExpires,
-      resetPasswordToken,
-      resetPasswordExpires,
-      ...userWithoutSensitive
-    } = user;
-
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: userWithoutSensitive,
-    };
+    return { message: 'Verification code sent successfully' };
   }
 
-  async registerWithPhone(
-    phoneRegisterDto: PhoneRegisterDto,
-  ): Promise<AuthResponseDto> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { phone: phoneRegisterDto.phone },
+  async registerWithEmail(dto: RegisterWithEmailDto): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+        verificationToken: dto.code,
+      },
     });
 
-    if (existingUser) {
-      throw new ConflictException('Phone number already registered');
+    if (!user) {
+      throw new BadRequestException('Invalid verification code');
     }
 
-    const hashedPassword = await bcrypt.hash(phoneRegisterDto.password, 10);
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code expired');
+    }
 
-    const user = await this.prisma.user.create({
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
       data: {
-        ...phoneRegisterDto,
-        password: hashedPassword,
+        isEmailVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+        lastLogin: new Date(),
       },
     });
 
-    // SMS verification will be implemented later
-    const payload = { sub: user.id, phone: user.phone, role: user.role };
-    const {
-      password,
-      verificationToken,
-      verificationExpires,
-      resetPasswordToken,
-      resetPasswordExpires,
-      ...userWithoutSensitive
-    } = user;
-
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: userWithoutSensitive,
-    };
+    return this.createUserResponse(updatedUser);
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email: loginDto.email }, { phone: loginDto.email }],
-      },
+  async loginWithEmailPassword(
+    dto: EmailPasswordLoginDto,
+  ): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
     });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      loginDto.password,
-      user.password,
-    );
+    if (!user.isEmailVerified) {
+      if (user.isPhoneVerified) {
+        throw new BadRequestException(
+          `Email is not verified. Please login with your verified phone number: ${user.phone}`,
+        );
+      }
+      throw new BadRequestException(
+        'Email is not verified. Please verify it first.',
+      );
+    }
+
+    if (!dto.password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'Password not set for this account. Please use OTP login',
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
     });
 
-    const {
-      password,
-      verificationToken,
-      verificationExpires,
-      resetPasswordToken,
-      resetPasswordExpires,
-      ...userWithoutSensitive
-    } = user;
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: userWithoutSensitive,
-    };
+    return this.createUserResponse(user);
   }
 
-  async requestEmailVerification(
-    dto: RequestEmailVerificationDto,
-  ): Promise<void> {
+  async loginWithEmailOtp(dto: EmailOtpLoginDto): Promise<AuthResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.isEmailVerified) {
-      throw new BadRequestException('Email already verified');
+    if (!user.isEmailVerified) {
+      throw new BadRequestException('Email is not verified');
     }
 
-    if (!user.email) {
-      throw new BadRequestException('User does not have an email address');
+    if (!dto.code) {
+      throw new BadRequestException('Verification code is required');
     }
 
-    const verificationCode = this.generateVerificationCode();
+    // Verify the code
+    if (
+      !user.verificationToken ||
+      user.verificationToken !== dto.code ||
+      !user.verificationExpires ||
+      new Date() > user.verificationExpires
+    ) {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+
+    // Clear verification data
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        verificationToken: verificationCode,
-        verificationExpires: this.getVerificationExpiry(),
+        verificationToken: null,
+        verificationExpires: null,
+        lastLogin: new Date(),
       },
     });
 
-    await this.mailService.sendMail({
-      to: user.email,
-      subject: 'Email Verification Code',
-      template: 'verification-code',
-      context: {
-        name: user.firstName || 'User',
-        verificationCode,
-        expiresIn: 10,
-      },
-    });
+    return this.createUserResponse(user);
   }
 
-  async verifyEmail(dto: VerifyEmailDto): Promise<void> {
+  async requestEmailPasswordReset(
+    dto: RequestEmailPasswordResetDto,
+  ): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('No account found with this email');
     }
 
-    if (user.isEmailVerified) {
-      throw new BadRequestException('Email already verified');
+    if (!user.isEmailVerified) {
+      throw new BadRequestException('Email is not verified');
     }
 
-    if (!user.verificationToken || !user.verificationExpires) {
-      throw new BadRequestException('No verification code found');
+    const resetCode = this.generateVerificationCode();
+    const resetExpiry = this.getVerificationExpiry();
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetCode,
+        resetPasswordExpires: resetExpiry,
+      },
+    });
+
+    await this.mailService.sendMails({
+      to: dto.email,
+      subject: 'Password Reset Request',
+      template: 'reset-password',
+      context: {
+        name: user.firstName || 'User',
+        resetToken: resetCode,
+      },
+    });
+
+    return { message: 'Reset code sent successfully to your email' };
+  }
+
+  async emailPasswordReset(
+    dto: ResetEmailPasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+        resetPasswordToken: dto.code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid reset code');
     }
 
-    if (user.verificationToken !== dto.code) {
+    if (!user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
+      throw new BadRequestException('Reset code has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    return { message: 'Password reset successful' };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: dto.email,
+        verificationToken: dto.code,
+      },
+    });
+
+    if (!user) {
       throw new BadRequestException('Invalid verification code');
     }
 
-    if (new Date() > user.verificationExpires) {
-      throw new BadRequestException('Verification code expired');
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code has expired');
     }
 
     await this.prisma.user.update({
@@ -238,46 +376,264 @@ export class AuthService {
         verificationExpires: null,
       },
     });
+
+    return { message: 'Email verified successfully' };
   }
 
-  async requestPasswordReset(dto: RequestPasswordResetDto): Promise<void> {
-    const user = await this.prisma.user.findFirst({
+  async sendPhoneCode(dto: PhoneCodeDto): Promise<{ message: string }> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+
+    if (existingUser) {
+      if (existingUser.isPhoneVerified) {
+        throw new ConflictException(
+          'Phone number is already registered and verified',
+        );
+      }
+
+      // User exists but not verified, send new verification code
+      const verificationCode = this.generateVerificationCode();
+      await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          verificationToken: verificationCode,
+          verificationExpires: this.getVerificationExpiry(),
+        },
+      });
+
+      await this.smsService.sendMessages({
+        to: dto.phone,
+        template: 'verification-code',
+        context: {
+          name: existingUser.firstName || 'User',
+          code: verificationCode,
+          expiresIn: 2,
+        },
+      });
+
+      return { message: 'Verification code sent successfully' };
+    }
+
+    // New user registration
+    const verificationCode = this.generateVerificationCode();
+    await this.prisma.user.create({
+      data: {
+        phone: dto.phone,
+        verificationToken: verificationCode,
+        verificationExpires: this.getVerificationExpiry(),
+        password: '', // Required by Prisma schema
+      },
+    });
+
+    await this.smsService.sendMessages({
+      to: dto.phone,
+      template: 'verification-code',
+      context: {
+        name: 'User',
+        code: verificationCode,
+        expiresIn: 2,
+      },
+    });
+
+    return { message: 'Verification code sent successfully' };
+  }
+
+  async registerWithPhone(dto: RegisterWithPhoneDto): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
       where: {
-        OR: [{ email: dto.email }, { phone: dto.phone }],
+        phone: dto.phone,
+        verificationToken: dto.code,
       },
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code expired');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isPhoneVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+        lastLogin: new Date(),
+      },
+    });
+
+    return this.createUserResponse(updatedUser);
+  }
+
+  async loginWithPhonePassword(
+    dto: PhonePasswordLoginDto,
+  ): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isPhoneVerified) {
+      if (user.isEmailVerified) {
+        throw new BadRequestException(
+          `Phone is not verified. Please login with your verified email: ${user.email}`,
+        );
+      }
+      throw new BadRequestException(
+        'Phone is not verified. Please verify it first.',
+      );
+    }
+
+    if (!dto.password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'Password not set for this account. Please use OTP login',
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    return this.createUserResponse(user);
+  }
+
+  async loginWithPhoneOtp(dto: PhoneOtpLoginDto): Promise<AuthResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isPhoneVerified) {
+      throw new BadRequestException('Phone number is not verified');
+    }
+
+    if (!dto.code) {
+      // Generate and send new OTP
+      const verificationCode = this.generateVerificationCode();
+      const verificationExpires = this.getVerificationExpiry();
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          verificationToken: verificationCode,
+          verificationExpires,
+        },
+      });
+
+      await this.smsService.sendMessages({
+        to: dto.phone,
+        template: 'verification-code',
+        context: {
+          name: user.firstName || 'User',
+          code: verificationCode,
+          expiresIn: 2,
+        },
+      });
+
+      const {
+        password,
+        verificationToken,
+        verificationExpires: expires,
+        resetPasswordToken,
+        resetPasswordExpires,
+        refreshToken,
+        ...userWithoutSensitive
+      } = user;
+
+      return {
+        accessToken: '',
+        refreshToken: '',
+        user: userWithoutSensitive,
+      };
+    }
+
+    // Verify the code
+    if (
+      !user.verificationToken ||
+      user.verificationToken !== dto.code ||
+      !user.verificationExpires ||
+      new Date() > user.verificationExpires
+    ) {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+
+    // Clear verification data
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verificationToken: null,
+        verificationExpires: null,
+        lastLogin: new Date(),
+      },
+    });
+
+    return this.createUserResponse(user);
+  }
+
+  async requestPhonePasswordReset(
+    dto: RequestPhonePasswordResetDto,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new BadRequestException('No account found with this phone number');
+    }
+
+    if (!user.isPhoneVerified) {
+      throw new BadRequestException('Phone number is not verified');
     }
 
     const resetCode = this.generateVerificationCode();
+    const resetExpiry = this.getVerificationExpiry();
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         resetPasswordToken: resetCode,
-        resetPasswordExpires: this.getVerificationExpiry(),
+        resetPasswordExpires: resetExpiry,
       },
     });
 
-    if (user.email) {
-      await this.mailService.sendMail({
-        to: user.email,
-        subject: 'Password Reset Request',
-        template: 'reset-password',
-        context: {
-          name: user.firstName || 'User',
-          resetToken: resetCode,
-        },
-      });
-    }
-    // SMS implementation for phone reset will be added later
+    await this.smsService.sendMessages({
+      to: dto.phone,
+      template: 'reset-password',
+      context: {
+        name: user.firstName || 'User',
+        code: resetCode,
+        expiresIn: 2,
+      },
+    });
+
+    return { message: 'Reset code sent successfully to your phone' };
   }
 
-  async resetPassword(dto: ResetPasswordDto): Promise<void> {
-    const user = await this.prisma.user.findFirst({
+  async phonePasswordReset(
+    dto: ResetPhonePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
       where: {
-        OR: [{ email: dto.email }, { phone: dto.phone }],
+        phone: dto.phone,
         resetPasswordToken: dto.code,
       },
     });
@@ -287,10 +643,11 @@ export class AuthService {
     }
 
     if (!user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
-      throw new BadRequestException('Reset code expired');
+      throw new BadRequestException('Reset code has expired');
     }
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
@@ -299,5 +656,103 @@ export class AuthService {
         resetPasswordExpires: null,
       },
     });
+
+    return { message: 'Password reset successful' };
+  }
+
+  async verifyPhone(dto: VerifyPhoneDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        phone: dto.phone,
+        verificationToken: dto.code,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (!user.verificationExpires || new Date() > user.verificationExpires) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isPhoneVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      },
+    });
+
+    return { message: 'Phone number verified successfully' };
+  }
+
+  async refreshTokens(refreshToken: string): Promise<AuthResponseDto> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      // Verify the refresh token with proper type
+      const payload = this.jwtService.verify<Pick<JwtPayloadType, 'sub'>>(
+        refreshToken,
+        {
+          secret: this.configService.get('JWT_REFRESH_SECRET'),
+        },
+      );
+
+      if (!payload?.sub) {
+        throw new UnauthorizedException('Invalid refresh token payload');
+      }
+
+      // Find user with this refresh token
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: payload.sub,
+          refreshToken: refreshToken,
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      return this.createUserResponse(user);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async logout(userId: string): Promise<{ message: string }> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken: null,
+      },
+    });
+
+    return { message: 'Logged out successfully' };
+  }
+
+  async getCurrentUser(userId: string): Promise<SafeUser | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const {
+      password,
+      verificationToken,
+      verificationExpires,
+      resetPasswordToken,
+      resetPasswordExpires,
+      refreshToken,
+      ...userWithoutSensitive
+    } = user;
+    return userWithoutSensitive;
   }
 }

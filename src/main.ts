@@ -2,9 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   // Enable CORS
   app.enableCors();
@@ -26,13 +28,14 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(process.env.PORT ?? 5000);
+  const port = configService.get<number>('PORT', 5000);
+  await app.listen(port);
 }
 
 bootstrap()
   .then(() =>
     console.log(
-      `Application is running on: http://localhost:${process.env.PORT ?? 5000}`,
+      `Application is running on: http://localhost:${process.env.PORT ?? 5000}\nAPI documentation available at: http://localhost:${process.env.PORT ?? 5000}/api-docs`,
     ),
   )
   .catch((error) => {
