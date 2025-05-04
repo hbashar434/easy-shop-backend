@@ -24,7 +24,7 @@ import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayloadType } from './interfaces/auth.interface';
+import { JwtPayloadType, SafeUser } from './interfaces/auth.interface';
 import {
   EmailOtpLoginDto,
   EmailPasswordLoginDto,
@@ -733,5 +733,26 @@ export class AuthService {
     });
 
     return { message: 'Logged out successfully' };
+  }
+
+  async getCurrentUser(userId: string): Promise<SafeUser | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const {
+      password,
+      verificationToken,
+      verificationExpires,
+      resetPasswordToken,
+      resetPasswordExpires,
+      refreshToken,
+      ...userWithoutSensitive
+    } = user;
+    return userWithoutSensitive;
   }
 }

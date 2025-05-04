@@ -30,3 +30,13 @@ export interface UserResponseType {
 export interface RequestWithUser extends ExpressRequest {
   user: Pick<User, 'id' | 'role'>;
 }
+
+export type SafeUser = Omit<
+  User,
+  | 'password'
+  | 'verificationToken'
+  | 'verificationExpires'
+  | 'resetPasswordToken'
+  | 'resetPasswordExpires'
+  | 'refreshToken'
+>;
