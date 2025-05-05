@@ -3,17 +3,31 @@ import {
   IsEmail,
   IsString,
   Length,
-  IsOptional,
+  IsNotEmpty,
   Matches,
+  IsPhoneNumber,
 } from 'class-validator';
 
-export class RequestEmailVerificationDto {
+export class EmailVerifyRequestDto {
   @ApiProperty({
     example: 'user@example.com',
     description: 'Email address to verify',
   })
+  @IsString()
   @IsEmail()
+  @IsNotEmpty()
   email: string;
+}
+
+export class PhoneVerifyRequestDto {
+  @ApiProperty({
+    example: '+8801712345678',
+    description: 'Phone number to verify',
+  })
+  @IsString()
+  @IsPhoneNumber()
+  @IsNotEmpty()
+  phone: string;
 }
 
 export class VerifyEmailDto {
