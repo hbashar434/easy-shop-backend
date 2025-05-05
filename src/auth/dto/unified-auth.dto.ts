@@ -5,6 +5,8 @@ import {
   Matches,
   ValidateIf,
   IsNotEmpty,
+  IsEmail,
+  IsPhoneNumber,
 } from 'class-validator';
 
 interface HasIdentifier {
@@ -125,6 +127,16 @@ export class OtpLoginDto {
 }
 
 // For verification
+export class RequestVerifyDto {
+  @ApiProperty({
+    example: '+8801712345678 or user@example.com',
+    description: 'Email or phone number to verify',
+  })
+  @IsString()
+  @IsNotEmpty()
+  identifier: string;
+}
+
 export class VerifyDto {
   @ApiProperty({
     example: '+8801712345678 or user@example.com',

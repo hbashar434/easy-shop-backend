@@ -5,7 +5,7 @@ import type { Request as ExpressRequest } from 'express';
 export interface JwtPayloadType {
   sub: string;
   email: string;
-  role: Role;
+  role: string;
 }
 
 export interface AuthResponseType {
@@ -28,15 +28,10 @@ export interface UserResponseType {
 }
 
 export interface RequestWithUser extends ExpressRequest {
-  user: Pick<User, 'id' | 'role'>;
+  user: JwtPayloadType;
 }
 
 export type SafeUser = Omit<
   User,
-  | 'password'
-  | 'verificationToken'
-  | 'verificationExpires'
-  | 'resetPasswordToken'
-  | 'resetPasswordExpires'
-  | 'refreshToken'
+  'password' | 'verificationToken' | 'verificationExpires' | 'refreshToken'
 >;
