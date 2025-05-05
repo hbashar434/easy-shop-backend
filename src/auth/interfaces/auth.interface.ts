@@ -33,10 +33,5 @@ export interface RequestWithUser extends ExpressRequest {
 
 export type SafeUser = Omit<
   User,
-  | 'password'
-  | 'verificationToken'
-  | 'verificationExpires'
-  | 'resetPasswordToken'
-  | 'resetPasswordExpires'
-  | 'refreshToken'
+  'password' | 'verificationToken' | 'verificationExpires' | 'refreshToken'
 >;

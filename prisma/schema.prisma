@@ -23,13 +23,10 @@ model User {
   role                   Role      @default(USER)
   isActive               Boolean   @default(true)
   isProfileComplete      Boolean   @default(false)
-  isEmailVerified        Boolean   @default(false)          // Email verified
-  isPhoneVerified        Boolean   @default(false)          // Phone verified
-  verificationToken      String?   @db.VarChar(6)           // For OTP verification
-  verificationExpires    DateTime?                          // OTP expiry time
-
-  resetPasswordToken     String?   @db.VarChar(6)           // For password reset OTP
-  resetPasswordExpires   DateTime?                          // Reset OTP expiry time
+  isEmailVerified        Boolean   @default(false)          
+  isPhoneVerified        Boolean   @default(false)          
+  verificationToken      String?   @db.VarChar(6)           // verification code
+  verificationExpires    DateTime?                          // Token expiry time
 
   refreshToken           String?   @db.VarChar(255)         // For JWT-based sessions
   lastLogin              DateTime?
