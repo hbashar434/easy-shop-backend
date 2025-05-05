@@ -59,6 +59,7 @@ import {
 } from './dto/unified-auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RequestWithUser } from './interfaces/auth.interface';
+import { validate as validateEmail } from 'email-validator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -77,7 +78,7 @@ export class AuthController {
       throw new BadRequestException('Identifier is required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.sendEmailCode({ email: dto.identifier })
       : this.authService.sendPhoneCode({ phone: dto.identifier });
@@ -96,7 +97,7 @@ export class AuthController {
       throw new BadRequestException('Identifier and code are required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.registerWithEmail({
           email: dto.identifier,
@@ -123,7 +124,7 @@ export class AuthController {
       throw new BadRequestException('Identifier and password are required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.loginWithEmailPassword({
           email: dto.identifier,
@@ -149,7 +150,7 @@ export class AuthController {
       throw new BadRequestException('Identifier is required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     // Handle the optional code parameter
     if (!dto.code) {
       // If no code provided, this is a request for OTP
@@ -191,13 +192,14 @@ export class AuthController {
       throw new BadRequestException('Identifier is required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.emailVerifyRequest(req.user.sub, dto.identifier)
       : this.authService.phoneVerifyRequest(req.user.sub, dto.identifier);
   }
 
   @Post('verify')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email/phone' })
   @ApiBody({ type: VerifyDto })
@@ -208,7 +210,7 @@ export class AuthController {
       throw new BadRequestException('Identifier and code are required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.verifyEmail({
           email: dto.identifier,
@@ -233,7 +235,7 @@ export class AuthController {
       throw new BadRequestException('Identifier is required');
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.requestEmailPasswordReset({
           email: dto.identifier,
@@ -258,7 +260,7 @@ export class AuthController {
       );
     }
 
-    const isEmail = dto.identifier.includes('@');
+    const isEmail = validateEmail(dto.identifier);
     return isEmail
       ? this.authService.emailPasswordReset({
           email: dto.identifier,
@@ -400,6 +402,7 @@ export class AuthController {
 
   @ApiExcludeEndpoint()
   @Post('email/verify')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email address' })
   @ApiBody({ type: VerifyEmailDto })
@@ -490,16 +493,6 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     return await this.authService.loginWithPhoneOtp(dto);
   }
-  @ApiExcludeEndpoint()
-  @Post('phone/verify')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify phone number' })
-  @ApiBody({ type: VerifyPhoneDto })
-  @ApiOkResponse({ description: 'Phone number verified successfully' })
-  @ApiBadRequestResponse({ description: 'Invalid verification code' })
-  async verifyPhone(@Body() dto: VerifyPhoneDto): Promise<{ message: string }> {
-    return await this.authService.verifyPhone(dto);
-  }
 
   @ApiExcludeEndpoint()
   @Post('phone/verify/request')
@@ -515,6 +508,18 @@ export class AuthController {
     @Body() dto: PhoneVerifyRequestDto,
   ): Promise<{ message: string }> {
     return this.authService.phoneVerifyRequest(req.user.sub, dto.phone);
+  }
+
+  @ApiExcludeEndpoint()
+  @Post('phone/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify phone number' })
+  @ApiBody({ type: VerifyPhoneDto })
+  @ApiOkResponse({ description: 'Phone number verified successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  async verifyPhone(@Body() dto: VerifyPhoneDto): Promise<{ message: string }> {
+    return await this.authService.verifyPhone(dto);
   }
 
   @ApiExcludeEndpoint()
