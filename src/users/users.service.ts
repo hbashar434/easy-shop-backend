@@ -23,8 +23,6 @@ export class UsersService {
       password,
       verificationToken,
       verificationExpires,
-      resetPasswordToken,
-      resetPasswordExpires,
       refreshToken,
       ...result
     } = user;
