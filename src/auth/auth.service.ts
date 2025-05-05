@@ -351,6 +351,51 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
+  async emailVerifyRequest(
+    userId: string,
+    email: string,
+  ): Promise<{ message: string }> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException('Email already in use by another account');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email,
+        isEmailVerified: false,
+        verificationToken: verificationCode,
+        verificationExpires: this.getVerificationExpiry(),
+      },
+    });
+
+    await this.mailService.sendMails({
+      to: email,
+      subject: 'Verify Your Email',
+      template: 'verification-code',
+      context: {
+        name: user.firstName || 'User',
+        verificationCode,
+        expiresIn: 10,
+      },
+    });
+
+    return { message: 'Verification code sent to your email' };
+  }
+
   async verifyEmail(dto: VerifyEmailDto): Promise<{ message: string }> {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -649,6 +694,52 @@ export class AuthService {
     });
 
     return { message: 'Password reset successful' };
+  }
+
+  async phoneVerifyRequest(
+    userId: string,
+    phone: string,
+  ): Promise<{ message: string }> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException(
+        'Phone number already in use by another account',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        phone,
+        isPhoneVerified: false,
+        verificationToken: verificationCode,
+        verificationExpires: this.getVerificationExpiry(),
+      },
+    });
+
+    await this.smsService.sendMessages({
+      to: phone,
+      template: 'verification-code',
+      context: {
+        name: user.firstName || 'User',
+        code: verificationCode,
+        expiresIn: 10,
+      },
+    });
+
+    return { message: 'Verification code sent to your phone' };
   }
 
   async verifyPhone(dto: VerifyPhoneDto): Promise<{ message: string }> {

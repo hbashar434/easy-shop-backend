@@ -9,7 +9,6 @@ import {
   Request,
   Get,
 } from '@nestjs/common';
-
 import { AuthService } from './auth.service';
 import {
   EmailCodeDto,
@@ -29,7 +28,12 @@ import {
   RequestPhonePasswordResetDto,
   ResetPhonePasswordDto,
 } from './dto/reset-password.dto';
-import { VerifyEmailDto, VerifyPhoneDto } from './dto/verify.dto';
+import {
+  EmailVerifyRequestDto,
+  PhoneVerifyRequestDto,
+  VerifyEmailDto,
+  VerifyPhoneDto,
+} from './dto/verify.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -51,6 +55,7 @@ import {
   VerifyDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
+  RequestVerifyDto,
 } from './dto/unified-auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RequestWithUser } from './interfaces/auth.interface';
@@ -170,6 +175,28 @@ export class AuthController {
         });
   }
 
+  @Post('verify/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request verification for email/phone' })
+  @ApiBody({ type: RequestVerifyDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiBearerAuth()
+  async requestVerification(
+    @Request() req: RequestWithUser,
+    @Body() dto: RequestVerifyDto,
+  ): Promise<{ message: string }> {
+    if (!dto?.identifier) {
+      throw new BadRequestException('Identifier is required');
+    }
+
+    const isEmail = dto.identifier.includes('@');
+    return isEmail
+      ? this.authService.emailVerifyRequest(req.user.sub, dto.identifier)
+      : this.authService.phoneVerifyRequest(req.user.sub, dto.identifier);
+  }
+
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email/phone' })
@@ -277,7 +304,7 @@ export class AuthController {
   @ApiOkResponse({ description: 'User logged out successfully' })
   @ApiBearerAuth()
   async logout(@Request() req: RequestWithUser): Promise<{ message: string }> {
-    return this.authService.logout(req.user.id);
+    return this.authService.logout(req.user.sub);
   }
 
   @Get('me')
@@ -287,7 +314,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
   @ApiBearerAuth()
   async getCurrentUser(@Request() req: RequestWithUser) {
-    return await this.authService.getCurrentUser(req.user.id);
+    return await this.authService.getCurrentUser(req.user.sub);
   }
 
   /////////////////////////////////////////////////////////////////
@@ -354,6 +381,23 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     return await this.authService.loginWithEmailOtp(dto);
   }
+
+  @ApiExcludeEndpoint()
+  @Post('email/verify/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request email verification' })
+  @ApiBody({ type: EmailVerifyRequestDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid email' })
+  @ApiBearerAuth()
+  async requestEmailVerification(
+    @Request() req: RequestWithUser,
+    @Body() dto: EmailVerifyRequestDto,
+  ): Promise<{ message: string }> {
+    return this.authService.emailVerifyRequest(req.user.sub, dto.email);
+  }
+
   @ApiExcludeEndpoint()
   @Post('email/verify')
   @HttpCode(HttpStatus.OK)
@@ -364,6 +408,7 @@ export class AuthController {
   async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
     return await this.authService.verifyEmail(dto);
   }
+
   @ApiExcludeEndpoint()
   @Post('email/password/request')
   @HttpCode(HttpStatus.OK)
@@ -455,6 +500,23 @@ export class AuthController {
   async verifyPhone(@Body() dto: VerifyPhoneDto): Promise<{ message: string }> {
     return await this.authService.verifyPhone(dto);
   }
+
+  @ApiExcludeEndpoint()
+  @Post('phone/verify/request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request phone verification' })
+  @ApiBody({ type: PhoneVerifyRequestDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid phone number' })
+  @ApiBearerAuth()
+  async requestPhoneVerification(
+    @Request() req: RequestWithUser,
+    @Body() dto: PhoneVerifyRequestDto,
+  ): Promise<{ message: string }> {
+    return this.authService.phoneVerifyRequest(req.user.sub, dto.phone);
+  }
+
   @ApiExcludeEndpoint()
   @Post('phone/password/request')
   @HttpCode(HttpStatus.OK)
