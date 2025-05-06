@@ -16,9 +16,9 @@ import { SmsModule } from '../common/sms/sms.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_ACCESS_SECRET', '15d'),
+        secret: configService.get<string>('JWT_ACCESS_SECRET', '15d'),
         signOptions: {
-          expiresIn: configService.get('JWT_ACCESS_EXPIRES_IN', '3d'),
+          expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN', '3d'),
         },
       }),
       inject: [ConfigService],
