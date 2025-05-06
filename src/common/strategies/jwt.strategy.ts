@@ -12,9 +12,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    const secret = configService.get<string>('JWT_SECRET');
+    const secret = configService.get<string>('JWT_ACCESS_SECRET');
     if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
+      throw new Error('JWT_ACCESS_SECRET is not defined');
     }
     const options: StrategyOptions = {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,13 +24,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super(options);
   }
 
-  async validate(payload: JwtPayloadType): Promise<User> {
+  async validate(payload: JwtPayloadType): Promise<User & { sub: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
     if (!user) {
       throw new UnauthorizedException();
     }
-    return user;
+    return {
+      ...user,
+      sub: payload.sub,
+    };
   }
 }
