@@ -45,6 +45,7 @@ import {
   ApiBadRequestResponse,
   ApiExcludeEndpoint,
   ApiBearerAuth,
+  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import {
@@ -68,11 +69,15 @@ export class AuthController {
 
   // New unified endpoints
   @Post('code')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Request verification code (email/phone)' })
   @ApiBody({ type: RequestCodeDto })
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiConflictResponse({ description: 'Identifier already registered' })
+  @ApiNotFoundResponse({
+    description: 'User not found. Please create an account.',
+  })
+  @ApiBearerAuth()
   async requestCode(@Body() dto: RequestCodeDto): Promise<{ message: string }> {
     if (!dto?.identifier) {
       throw new BadRequestException('Identifier is required');
@@ -82,6 +87,25 @@ export class AuthController {
     return isEmail
       ? this.authService.sendEmailCode({ email: dto.identifier })
       : this.authService.sendPhoneCode({ phone: dto.identifier });
+  }
+
+  @Post('request/register')
+  @ApiOperation({ summary: 'Request verification code (email/phone)' })
+  @ApiBody({ type: RequestCodeDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiConflictResponse({ description: 'Identifier already registered' })
+  async requestRegister(
+    @Body() dto: RequestCodeDto,
+  ): Promise<{ message: string }> {
+    if (!dto?.identifier) {
+      throw new BadRequestException('Identifier is required');
+    }
+
+    const isEmail = validateEmail(dto.identifier);
+    return isEmail
+      ? this.authService.requestRegisterWithEmail({ email: dto.identifier })
+      : this.authService.requestRegisterWithPhone({ phone: dto.identifier });
   }
 
   @Post('register')
@@ -194,10 +218,9 @@ export class AuthController {
 
     const isEmail = validateEmail(dto.identifier);
     return isEmail
-      ? this.authService.emailVerifyRequest(req.user.sub, dto.identifier)
-      : this.authService.phoneVerifyRequest(req.user.sub, dto.identifier);
+      ? this.authService.requestEmailVerify(req.user.sub, dto.identifier)
+      : this.authService.requestPhoneVerify(req.user.sub, dto.identifier);
   }
-
   @Post('verify')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -205,6 +228,7 @@ export class AuthController {
   @ApiBody({ type: VerifyDto })
   @ApiOkResponse({ description: 'Verification successful' })
   @ApiBadRequestResponse({ description: 'Invalid verification code' })
+  @ApiBearerAuth()
   async verify(@Body() dto: VerifyDto): Promise<{ message: string }> {
     if (!dto?.identifier || !dto?.code) {
       throw new BadRequestException('Identifier and code are required');
@@ -331,9 +355,24 @@ export class AuthController {
   @ApiBody({ type: EmailCodeDto })
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiConflictResponse({ description: 'Email already registered' })
+  @ApiNotFoundResponse({
+    description: 'User not found. Please create an account.',
+  })
   async sendEmailCode(@Body() dto: EmailCodeDto): Promise<{ message: string }> {
     return await this.authService.sendEmailCode(dto);
+  }
+
+  @ApiExcludeEndpoint()
+  @Post('email/register/request')
+  @ApiOperation({ summary: 'Start registration process with email' })
+  @ApiBody({ type: EmailCodeDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiConflictResponse({ description: 'Email already registered' })
+  async requestRegisterWithEmail(
+    @Body() dto: EmailCodeDto,
+  ): Promise<{ message: string }> {
+    return await this.authService.requestRegisterWithEmail(dto);
   }
 
   @ApiExcludeEndpoint()
@@ -397,7 +436,7 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() dto: EmailVerifyRequestDto,
   ): Promise<{ message: string }> {
-    return this.authService.emailVerifyRequest(req.user.sub, dto.email);
+    return this.authService.requestEmailVerify(req.user.sub, dto.email);
   }
 
   @ApiExcludeEndpoint()
@@ -436,6 +475,20 @@ export class AuthController {
   ): Promise<{ message: string }> {
     return await this.authService.emailPasswordReset(dto);
   }
+
+  @ApiExcludeEndpoint()
+  @Post('phone/code')
+  @ApiOperation({ summary: 'Start registration process with phone' })
+  @ApiBody({ type: PhoneCodeDto })
+  @ApiOkResponse({ description: 'Verification code sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiNotFoundResponse({
+    description: 'User not found. Please create an account.',
+  })
+  async sendPhoneCode(@Body() dto: PhoneCodeDto): Promise<{ message: string }> {
+    return await this.authService.sendPhoneCode(dto);
+  }
+
   @ApiExcludeEndpoint()
   @Post('phone/code')
   @ApiOperation({ summary: 'Start registration process with phone' })
@@ -443,8 +496,10 @@ export class AuthController {
   @ApiOkResponse({ description: 'Verification code sent successfully' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiConflictResponse({ description: 'Phone number already registered' })
-  async sendPhoneCode(@Body() dto: PhoneCodeDto): Promise<{ message: string }> {
-    return await this.authService.sendPhoneCode(dto);
+  async requestRegisterWithPhone(
+    @Body() dto: PhoneCodeDto,
+  ): Promise<{ message: string }> {
+    return await this.authService.requestRegisterWithPhone(dto);
   }
   @ApiExcludeEndpoint()
   @Post('phone/register')
@@ -507,7 +562,7 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() dto: PhoneVerifyRequestDto,
   ): Promise<{ message: string }> {
-    return this.authService.phoneVerifyRequest(req.user.sub, dto.phone);
+    return this.authService.requestPhoneVerify(req.user.sub, dto.phone);
   }
 
   @ApiExcludeEndpoint()
