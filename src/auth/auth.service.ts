@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,12 +65,12 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(accessPayload, {
       secret: this.configService.get('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get('JWT_EXPIRES_IN', '1d'),
+      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '3d'),
     });
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.configService.get('JWT_REFRESH_SECRET'),
-      expiresIn: '7d',
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '15d'),
     });
 
     return { accessToken, refreshToken };
@@ -116,7 +117,47 @@ export class AuthService {
       where: { email: dto.email },
     });
 
+    if (!existingUser) {
+      throw new NotFoundException('User not found. Please create an account.');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        verificationToken: verificationCode,
+        verificationExpires: this.getVerificationExpiry(),
+      },
+    });
+
+    await this.mailService.sendMails({
+      to: dto.email,
+      subject: 'Verify Yourself',
+      template: 'verification-code',
+      context: {
+        name: existingUser.firstName || 'User',
+        verificationCode,
+        expiresIn: 2,
+      },
+    });
+
+    return { message: 'Verification code sent successfully' };
+  }
+
+  async requestRegisterWithEmail(
+    dto: EmailCodeDto,
+  ): Promise<{ message: string }> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
     if (existingUser) {
+      if (existingUser.isEmailVerified) {
+        throw new ConflictException(
+          'Email already exists and is verified. Please log in.',
+        );
+      }
+
       const verificationCode = this.generateVerificationCode();
       await this.prisma.user.update({
         where: { id: existingUser.id },
@@ -153,7 +194,7 @@ export class AuthService {
 
     await this.mailService.sendMails({
       to: dto.email,
-      subject: 'Complete Your Registration',
+      subject: 'Verify Yourself',
       template: 'verification-code',
       context: {
         name: 'User',
@@ -351,7 +392,7 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
-  async emailVerifyRequest(
+  async requestEmailVerify(
     userId: string,
     email: string,
   ): Promise<{ message: string }> {
@@ -429,7 +470,46 @@ export class AuthService {
       where: { phone: dto.phone },
     });
 
+    if (!existingUser) {
+      throw new NotFoundException('User not found. Please create an account.');
+    }
+
+    const verificationCode = this.generateVerificationCode();
+    await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        verificationToken: verificationCode,
+        verificationExpires: this.getVerificationExpiry(),
+      },
+    });
+
+    await this.smsService.sendMessages({
+      to: dto.phone,
+      template: 'verification-code',
+      context: {
+        name: existingUser.firstName || 'User',
+        code: verificationCode,
+        expiresIn: 2,
+      },
+    });
+
+    return { message: 'Verification code sent successfully' };
+  }
+
+  async requestRegisterWithPhone(
+    dto: PhoneCodeDto,
+  ): Promise<{ message: string }> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+
     if (existingUser) {
+      if (existingUser.isPhoneVerified) {
+        throw new ConflictException(
+          'Phone number already exists and is verified. Please log in.',
+        );
+      }
+
       const verificationCode = this.generateVerificationCode();
       await this.prisma.user.update({
         where: { id: existingUser.id },
@@ -696,7 +776,7 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
-  async phoneVerifyRequest(
+  async requestPhoneVerify(
     userId: string,
     phone: string,
   ): Promise<{ message: string }> {
