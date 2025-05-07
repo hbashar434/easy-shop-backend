@@ -25,7 +25,7 @@ import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayloadType, SafeUser } from './interfaces/auth.interface';
+import { SafeUser } from './interfaces/auth.interface';
 import {
   EmailOtpLoginDto,
   EmailPasswordLoginDto,
@@ -33,6 +33,7 @@ import {
   PhonePasswordLoginDto,
 } from './dto/login.dto';
 import { VerifyEmailDto, VerifyPhoneDto } from './dto/verify.dto';
+import { JwtPayload } from 'src/common/interfaces/request.interface';
 
 @Injectable()
 export class AuthService {
@@ -53,13 +54,13 @@ export class AuthService {
   }
 
   private generateTokens(user: User) {
-    const accessPayload: JwtPayloadType = {
+    const accessPayload: JwtPayload = {
       sub: user.id,
       email: user.email ?? '',
       role: user.role,
     };
 
-    const refreshPayload: Pick<JwtPayloadType, 'sub'> = {
+    const refreshPayload: Pick<JwtPayload, 'sub'> = {
       sub: user.id,
     };
 
@@ -860,7 +861,7 @@ export class AuthService {
 
     try {
       // Verify the refresh token with proper type
-      const payload = this.jwtService.verify<Pick<JwtPayloadType, 'sub'>>(
+      const payload = this.jwtService.verify<Pick<JwtPayload, 'sub'>>(
         refreshToken,
         {
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
