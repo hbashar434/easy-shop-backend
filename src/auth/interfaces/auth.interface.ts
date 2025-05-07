@@ -1,12 +1,5 @@
 import { User } from '@prisma/client';
 import { Role } from '@prisma/client';
-import type { Request as ExpressRequest } from 'express';
-
-export interface JwtPayloadType {
-  sub: string;
-  email: string;
-  role: string;
-}
 
 export interface AuthResponseType {
   access_token: string;
@@ -25,10 +18,6 @@ export interface UserResponseType {
   role: Role;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface RequestWithUser extends ExpressRequest {
-  user: JwtPayloadType;
 }
 
 export type SafeUser = Omit<

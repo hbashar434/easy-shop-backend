@@ -10,6 +10,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto, UserFiltersDto } from './dto/users.dto';
@@ -17,7 +18,6 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
-import { UserResponseDto } from './dto/user-response.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -27,9 +27,11 @@ import {
   ApiNotFoundResponse,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
+import { AuthRequest } from 'src/common/interfaces/request.interface';
+import { UserResponseDto } from './dto/user-response.dto';
+import { ApiAllUserQueries } from './decorators/user-queries.decorator';
 
 @ApiTags('Users')
 @Controller('users')
@@ -45,63 +47,14 @@ export class UsersController {
     description: 'List of users retrieved successfully',
     type: [UserResponseDto],
   })
-  @ApiUnauthorizedResponse({
-    description: 'User is not authenticated',
-  })
+  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
   @ApiForbiddenResponse({
     description: 'User does not have sufficient permissions',
   })
-  @ApiBadRequestResponse({
-    description: 'Invalid filter parameters',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Search by name, email or phone',
-  })
-  @ApiQuery({
-    name: 'role',
-    required: false,
-    enum: Role,
-    description: 'Filter by role',
-  })
-  @ApiQuery({
-    name: 'isActive',
-    required: false,
-    type: Boolean,
-    description: 'Filter by active status',
-  })
-  @ApiQuery({
-    name: 'isEmailVerified',
-    required: false,
-    type: Boolean,
-    description: 'Filter by email verification status',
-  })
-  @ApiQuery({
-    name: 'isPhoneVerified',
-    required: false,
-    type: Boolean,
-    description: 'Filter by phone verification status',
-  })
-  @ApiQuery({
-    name: 'isProfileComplete',
-    required: false,
-    type: Boolean,
-    description: 'Filter by profile completion status',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    type: Date,
-    description: 'Filter by start date',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    type: Date,
-    description: 'Filter by end date',
-  })
-  findAll(@Query() filters: UserFiltersDto): Promise<UserResponseDto[]> {
+  @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
+  @ApiAllUserQueries()
+  findAll(@Query() query: UserFiltersDto, @Req() req: AuthRequest) {
+    const filters = { ...query, requesterRole: req.user.role as Role };
     return this.usersService.findAll(filters);
   }
 
