@@ -2,104 +2,54 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
 export class UserResponseDto {
-  @ApiProperty({
-    description: 'User ID',
-    example: 'b3f14b1e-2a6b-4e23-bd17-8c5f60a3d9f7',
-  })
+  @ApiProperty({ example: 'uuid-string' })
   id: string;
 
-  @ApiProperty({
-    description: 'User email address',
-    example: 'user@example.com',
-    required: false,
-  })
+  @ApiProperty({ example: 'user@example.com', nullable: true })
   email: string | null;
 
-  @ApiProperty({
-    description: 'Phone number',
-    example: '+8801712345678',
-    required: false,
-  })
+  @ApiProperty({ example: '+8801712345678', nullable: true })
   phone: string | null;
 
-  @ApiProperty({
-    description: 'User first name',
-    example: 'John',
-    required: false,
-  })
+  @ApiProperty({ example: 'John', nullable: true })
   firstName: string | null;
 
-  @ApiProperty({
-    description: 'User last name',
-    example: 'Doe',
-    required: false,
-  })
+  @ApiProperty({ example: 'Doe', nullable: true })
   lastName: string | null;
 
-  @ApiProperty({
-    description: 'User role',
-    example: 'USER',
-    enum: Role,
-  })
+  @ApiProperty({ enum: Role, example: Role.USER })
   role: Role;
 
-  @ApiProperty({
-    description: 'Account active status',
-    example: true,
-  })
+  @ApiProperty({ example: true })
   isActive: boolean;
 
-  @ApiProperty({
-    description: 'Email verification status',
-    example: false,
-  })
+  @ApiProperty({ example: false })
+  isProfileComplete: boolean;
+
+  @ApiProperty({ example: false })
   isEmailVerified: boolean;
 
-  @ApiProperty({
-    description: 'Phone verification status',
-    example: false,
-  })
+  @ApiProperty({ example: false })
   isPhoneVerified: boolean;
 
-  @ApiProperty({
-    description: 'Last login timestamp',
-    example: '2024-04-03T12:00:00Z',
-    required: false,
-  })
+  @ApiProperty({ example: null, nullable: true })
+  verificationToken: string | null;
+
+  @ApiProperty({ example: null, nullable: true })
+  verificationExpires: Date | null;
+
+  @ApiProperty({ example: null, nullable: true })
+  refreshToken: string | null;
+
+  @ApiProperty({ example: '2025-01-01T00:00:00Z', nullable: true })
   lastLogin: Date | null;
 
-  @ApiProperty({
-    description: 'User creation timestamp',
-    example: '2024-04-03T12:00:00Z',
-  })
+  @ApiProperty({ example: '2025-01-01T00:00:00Z' })
   createdAt: Date;
 
-  @ApiProperty({
-    description: 'User last update timestamp',
-    example: '2024-04-03T12:00:00Z',
-  })
+  @ApiProperty({ example: '2025-01-01T00:00:00Z' })
   updatedAt: Date;
 
-  @ApiProperty({
-    description: 'User deletion timestamp',
-    example: '2024-04-03T12:00:00Z',
-    required: false,
-  })
+  @ApiProperty({ example: null, nullable: true })
   deletedAt: Date | null;
-}
-
-export class UserListResponseDto {
-  @ApiProperty({
-    type: [UserResponseDto],
-    description: 'List of users',
-  })
-  users: UserResponseDto[];
-}
-
-export class DeleteUserResponseDto {
-  @ApiProperty({
-    description: 'Success message',
-    example: 'User deleted successfully',
-  })
-  message: string;
 }

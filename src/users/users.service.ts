@@ -1,160 +1,208 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import {
-  UserResponseDto,
-  UserListResponseDto,
-  DeleteUserResponseDto,
-} from './dto/user-response.dto';
-import * as bcrypt from 'bcrypt';
-import { Prisma, User } from '@prisma/client';
+import { User, Role, Prisma } from '@prisma/client';
+import { UpdateUserDto } from './dto/users.dto';
+import { UserFilters } from './interfaces/users.interface';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  private excludeSensitiveFields(user: User): UserResponseDto {
-    const {
-      password,
-      verificationToken,
-      verificationExpires,
-      refreshToken,
-      ...result
-    } = user;
-    return result as UserResponseDto;
-  }
+  async findAll(filters?: UserFilters): Promise<User[]> {
+    const where: Prisma.UserWhereInput = {};
 
-  async findAll(includeDeleted = false): Promise<UserListResponseDto> {
-    const where = includeDeleted ? {} : { deletedAt: null };
-    const users = await this.prisma.user.findMany({ where });
-    return {
-      users: users.map((user) => this.excludeSensitiveFields(user)),
-    };
-  }
-
-  async findOne(id: string): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user || user.deletedAt) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+    if (filters?.search) {
+      where.OR = [
+        { email: { contains: filters.search } },
+        { phone: { contains: filters.search } },
+        { firstName: { contains: filters.search } },
+        { lastName: { contains: filters.search } },
+      ];
     }
 
-    return this.excludeSensitiveFields(user);
-  }
-
-  async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
-  ): Promise<UserResponseDto> {
-    // Check if user exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!existingUser || existingUser.deletedAt) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+    if (filters?.role) {
+      where.role = filters.role;
     }
 
-    // Check email uniqueness if being updated
-    if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
-      const emailExists = await this.prisma.user.findUnique({
-        where: { email: updateUserDto.email },
-      });
-      if (emailExists) {
-        throw new ConflictException('Email already in use');
+    if (filters?.isActive !== undefined) {
+      where.isActive = filters.isActive;
+    }
+
+    if (filters?.isEmailVerified !== undefined) {
+      where.isEmailVerified = filters.isEmailVerified;
+    }
+
+    if (filters?.isPhoneVerified !== undefined) {
+      where.isPhoneVerified = filters.isPhoneVerified;
+    }
+
+    if (filters?.isProfileComplete !== undefined) {
+      where.isProfileComplete = filters.isProfileComplete;
+    }
+
+    // Handle date range filtering
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+
+      if (filters.startDate) {
+        where.createdAt.gte = filters.startDate;
+      }
+
+      if (filters.endDate) {
+        where.createdAt.lte = filters.endDate;
       }
     }
 
-    // Check phone uniqueness if being updated
-    if (updateUserDto.phone && updateUserDto.phone !== existingUser.phone) {
-      const phoneExists = await this.prisma.user.findUnique({
-        where: { phone: updateUserDto.phone },
-      });
-      if (phoneExists) {
-        throw new ConflictException('Phone number already in use');
-      }
+    // Exclude ADMIN users from results if requester is MANAGER
+    if (filters?.requesterRole === Role.MANAGER) {
+      where.role = { not: Role.ADMIN };
     }
 
-    // Hash password if provided
-    const dataToUpdate: Prisma.UserUpdateInput = { ...updateUserDto };
-    if (updateUserDto.password) {
-      dataToUpdate.password = await bcrypt.hash(updateUserDto.password, 10);
-    }
-
-    // Reset verification status if email/phone is changed
-    if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
-      dataToUpdate.isEmailVerified = false;
-      dataToUpdate.verificationToken = null;
-      dataToUpdate.verificationExpires = null;
-    }
-    if (updateUserDto.phone && updateUserDto.phone !== existingUser.phone) {
-      dataToUpdate.isPhoneVerified = false;
-    }
-
-    try {
-      const user = await this.prisma.user.update({
-        where: { id },
-        data: dataToUpdate,
-      });
-      return this.excludeSensitiveFields(user);
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new ConflictException('Unique constraint violation');
-        }
-      }
-      throw error;
-    }
-  }
-
-  async remove(id: string, hardDelete = false): Promise<DeleteUserResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    return this.prisma.user.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
-
-    if (!user || (!hardDelete && user.deletedAt)) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-
-    if (hardDelete) {
-      await this.prisma.user.delete({
-        where: { id },
-      });
-    } else {
-      await this.prisma.user.update({
-        where: { id },
-        data: { deletedAt: new Date() },
-      });
-    }
-
-    return { message: 'User deleted successfully' };
   }
 
-  async restore(id: string): Promise<UserResponseDto> {
+  async findOne(id: string, requesterRole?: Role): Promise<User> {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException('User not found');
     }
 
-    if (!user.deletedAt) {
-      throw new BadRequestException('User is not deleted');
+    if (requesterRole === Role.MANAGER && user.role === Role.ADMIN) {
+      throw new ForbiddenException(
+        'Insufficient permissions to view this user',
+      );
     }
 
-    const restoredUser = await this.prisma.user.update({
-      where: { id },
-      data: { deletedAt: null },
-    });
+    return user;
+  }
 
-    return this.excludeSensitiveFields(restoredUser);
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    requesterRole?: Role,
+  ): Promise<User> {
+    try {
+      const existingUser = await this.findOne(id, requesterRole);
+
+      if (requesterRole === Role.MANAGER && existingUser.role === Role.ADMIN) {
+        throw new ForbiddenException('Cannot modify admin user');
+      }
+
+      if (requesterRole === Role.MANAGER && updateUserDto.role) {
+        throw new ForbiddenException('Managers cannot change user roles');
+      }
+
+      if (
+        updateUserDto.role &&
+        updateUserDto.role !== existingUser.role &&
+        existingUser.role === Role.ADMIN &&
+        requesterRole !== Role.ADMIN
+      ) {
+        throw new BadRequestException(
+          'Cannot change role of an existing admin user',
+        );
+      }
+
+      if (updateUserDto.role === Role.ADMIN && requesterRole !== Role.ADMIN) {
+        throw new ForbiddenException('Only admins can create other admins');
+      }
+
+      return await this.prisma.user.update({
+        where: { id },
+        data: updateUserDto,
+      });
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to update user');
+    }
+  }
+
+  async remove(id: string, requesterRole?: Role): Promise<{ message: string }> {
+    try {
+      const user = await this.findOne(id, requesterRole);
+
+      if (requesterRole !== Role.ADMIN) {
+        throw new ForbiddenException('Only admins can delete users');
+      }
+
+      if (user.role === Role.ADMIN) {
+        throw new BadRequestException('Cannot delete an admin user');
+      }
+
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          isActive: false,
+          deletedAt: new Date(),
+        },
+      });
+
+      return { message: 'User deleted successfully' };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to delete user');
+    }
+  }
+
+  async restore(id: string, requesterRole?: Role): Promise<User> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (requesterRole !== Role.ADMIN) {
+        throw new ForbiddenException('Only admins can restore users');
+      }
+
+      if (!user.deletedAt) {
+        throw new BadRequestException('User is not deleted');
+      }
+
+      return await this.prisma.user.update({
+        where: { id },
+        data: {
+          isActive: true,
+          deletedAt: null,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to restore user');
+    }
   }
 }
