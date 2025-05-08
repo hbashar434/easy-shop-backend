@@ -6,7 +6,7 @@ import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
+import { UserModule } from './user/user.module';
 import { MailModule } from './common/mail/mail.module';
 import { SmsModule } from './common/sms/sms.module';
 import { UploadModule } from './common/upload/upload.module';
@@ -22,7 +22,7 @@ import { UploadModule } from './common/upload/upload.module';
     }),
     PrismaModule,
     AuthModule,
-    UsersModule,
+    UserModule,
     MailModule,
     SmsModule,
     UploadModule,
