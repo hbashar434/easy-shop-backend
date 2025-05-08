@@ -12,8 +12,8 @@ import {
   HttpStatus,
   Req,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UpdateUserDto, UserFiltersDto } from './dto/users.dto';
+import { UserService } from './user.service';
+import { UpdateUserDto, UserFiltersDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -37,8 +37,8 @@ import { ApiAllUserQueries } from './decorators/user-queries.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
-export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+export class UserController {
+  constructor(private readonly userService: UserService) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
@@ -55,7 +55,7 @@ export class UsersController {
   @ApiAllUserQueries()
   findAll(@Query() query: UserFiltersDto, @Req() req: AuthRequest) {
     const filters = { ...query, requesterRole: req.user.role as Role };
-    return this.usersService.findAll(filters);
+    return this.userService.findAll(filters);
   }
 
   @Get(':id')
@@ -76,7 +76,7 @@ export class UsersController {
     description: 'User not found',
   })
   findOne(@Param('id') id: string): Promise<UserResponseDto> {
-    return this.usersService.findOne(id);
+    return this.userService.findOne(id);
   }
 
   @Patch(':id')
@@ -103,7 +103,7 @@ export class UsersController {
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
-    return this.usersService.update(id, updateUserDto);
+    return this.userService.update(id, updateUserDto);
   }
 
   @Delete(':id')
@@ -136,7 +136,7 @@ export class UsersController {
     description: 'User not found',
   })
   remove(@Param('id') id: string): Promise<{ message: string }> {
-    return this.usersService.remove(id);
+    return this.userService.remove(id);
   }
 
   @Post(':id/restore')
@@ -160,6 +160,6 @@ export class UsersController {
     description: 'User not found',
   })
   restore(@Param('id') id: string): Promise<UserResponseDto> {
-    return this.usersService.restore(id);
+    return this.userService.restore(id);
   }
 }

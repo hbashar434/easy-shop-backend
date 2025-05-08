@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, Role, Prisma } from '@prisma/client';
-import { UpdateUserDto } from './dto/users.dto';
-import { UserFilters } from './interfaces/users.interface';
+import { UpdateUserDto } from './dto/user.dto';
+import { UserFilters } from './interfaces/user.interface';
 
 @Injectable()
-export class UsersService {
+export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(filters?: UserFilters): Promise<User[]> {
