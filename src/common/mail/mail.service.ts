@@ -39,6 +39,10 @@ export class MailService {
   }
 
   private async initializeService(): Promise<void> {
+    if (!this.sendMail) {
+      this.logger.log('Email sending is disabled.');
+      return;
+    }
     this.validateConfig();
     await this.checkRedisConnection();
   }

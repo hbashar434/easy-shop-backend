@@ -12,11 +12,11 @@ import { MailController } from './mail.controller';
 @Module({
   imports: [
     MailerModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         transport: {
-          host: config.get('MAIL_HOST'),
-          port: parseInt(config.get('MAIL_PORT') || '587'),
-          secure: config.get('MAIL_SECURE') === 'true',
+          host: configService.get<string>('MAIL_HOST'),
+          port: configService.get<number>('MAIL_PORT', 587),
+          secure: configService.get<string>('MAIL_SECURE') === 'true',
           pool: true,
           maxConnections: 5,
           rateDelta: 1000,
@@ -27,12 +27,12 @@ import { MailController } from './mail.controller';
             rejectUnauthorized: true,
           },
           auth: {
-            user: config.get('MAIL_USER'),
-            pass: config.get('MAIL_PASSWORD'),
+            user: configService.get<string>('MAIL_USER'),
+            pass: configService.get<string>('MAIL_PASSWORD'),
           },
         },
         defaults: {
-          from: `"${config.get('MAIL_FROM_NAME', 'My Auth')}" <${config.get('MAIL_FROM')}>`,
+          from: `"${configService.get<string>('MAIL_FROM_NAME', 'My Shop')}" <${configService.get<string>('MAIL_FROM')}>`,
         },
         template: {
           dir: path.join(process.cwd(), 'src', 'common', 'mail', 'templates'),

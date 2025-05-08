@@ -25,7 +25,7 @@ import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayloadType, SafeUser } from './interfaces/auth.interface';
+import { SafeUser } from './interfaces/auth.interface';
 import {
   EmailOtpLoginDto,
   EmailPasswordLoginDto,
@@ -33,6 +33,7 @@ import {
   PhonePasswordLoginDto,
 } from './dto/login.dto';
 import { VerifyEmailDto, VerifyPhoneDto } from './dto/verify.dto';
+import { JwtPayload } from 'src/common/interfaces/request.interface';
 
 @Injectable()
 export class AuthService {
@@ -53,24 +54,27 @@ export class AuthService {
   }
 
   private generateTokens(user: User) {
-    const accessPayload: JwtPayloadType = {
+    const accessPayload: JwtPayload = {
       sub: user.id,
       email: user.email ?? '',
       role: user.role,
     };
 
-    const refreshPayload: Pick<JwtPayloadType, 'sub'> = {
+    const refreshPayload: Pick<JwtPayload, 'sub'> = {
       sub: user.id,
     };
 
     const accessToken = this.jwtService.sign(accessPayload, {
-      secret: this.configService.get('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '3d'),
+      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '3d'),
     });
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
-      secret: this.configService.get('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '15d'),
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get<string>(
+        'JWT_REFRESH_EXPIRES_IN',
+        '15d',
+      ),
     });
 
     return { accessToken, refreshToken };
@@ -857,10 +861,10 @@ export class AuthService {
 
     try {
       // Verify the refresh token with proper type
-      const payload = this.jwtService.verify<Pick<JwtPayloadType, 'sub'>>(
+      const payload = this.jwtService.verify<Pick<JwtPayload, 'sub'>>(
         refreshToken,
         {
-          secret: this.configService.get('JWT_REFRESH_SECRET'),
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         },
       );
 
