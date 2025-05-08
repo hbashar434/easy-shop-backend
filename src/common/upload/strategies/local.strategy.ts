@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UploadStrategy } from '../interfaces/upload.interface';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,7 +9,7 @@ import { Multer } from 'multer';
 export class LocalUploadStrategy implements UploadStrategy {
   private readonly uploadDir = 'uploads';
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
@@ -20,8 +21,9 @@ export class LocalUploadStrategy implements UploadStrategy {
 
     await fs.promises.writeFile(filePath, file.buffer);
 
+    const serverUrl = this.configService.get<string>('APP_URL');
     return {
-      url: `/uploads/${filename}`,
+      url: `${serverUrl}/uploads/${filename}`,
     };
   }
 }
