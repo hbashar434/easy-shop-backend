@@ -48,6 +48,10 @@ export class SmsService {
   }
 
   private async initializeService(): Promise<void> {
+    if (!this.sendSms) {
+      this.logger.log('SMS sending is disabled.');
+      return;
+    }
     this.validateConfig();
     await this.checkRedisConnection();
   }

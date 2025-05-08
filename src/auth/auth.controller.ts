@@ -59,8 +59,8 @@ import {
   RequestVerifyDto,
 } from './dto/unified-auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RequestWithUser } from './interfaces/auth.interface';
 import { validate as validateEmail } from 'email-validator';
+import { AuthRequest } from 'src/common/interfaces/request.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -209,7 +209,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiBearerAuth()
   async requestVerification(
-    @Request() req: RequestWithUser,
+    @Request() req: AuthRequest,
     @Body() dto: RequestVerifyDto,
   ): Promise<{ message: string }> {
     if (!dto?.identifier) {
@@ -329,7 +329,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout user' })
   @ApiOkResponse({ description: 'User logged out successfully' })
   @ApiBearerAuth()
-  async logout(@Request() req: RequestWithUser): Promise<{ message: string }> {
+  async logout(@Request() req: AuthRequest): Promise<{ message: string }> {
     return this.authService.logout(req.user.sub);
   }
 
@@ -339,7 +339,7 @@ export class AuthController {
   @ApiOkResponse({ description: 'User information retrieved successfully' })
   @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
   @ApiBearerAuth()
-  async getCurrentUser(@Request() req: RequestWithUser) {
+  async getCurrentUser(@Request() req: AuthRequest) {
     return await this.authService.getCurrentUser(req.user.sub);
   }
 
@@ -433,7 +433,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Invalid email' })
   @ApiBearerAuth()
   async requestEmailVerification(
-    @Request() req: RequestWithUser,
+    @Request() req: AuthRequest,
     @Body() dto: EmailVerifyRequestDto,
   ): Promise<{ message: string }> {
     return this.authService.requestEmailVerify(req.user.sub, dto.email);
@@ -559,7 +559,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Invalid phone number' })
   @ApiBearerAuth()
   async requestPhoneVerification(
-    @Request() req: RequestWithUser,
+    @Request() req: AuthRequest,
     @Body() dto: PhoneVerifyRequestDto,
   ): Promise<{ message: string }> {
     return this.authService.requestPhoneVerify(req.user.sub, dto.phone);
