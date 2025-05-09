@@ -1,3 +1,4 @@
+how is it??
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,54 +19,168 @@ enum Status {
   INACTIVE
 }
 
-model User {
-  id                     String    @id @default(uuid())
-  email                  String?   @unique @db.VarChar(255)
-  phone                  String?   @unique @db.VarChar(20)
-  password               String    @db.VarChar(255)
-  firstName              String?   @db.VarChar(50)
-  lastName               String?   @db.VarChar(50)
-  role                   Role      @default(USER)
-  status                 Status    @default(ACTIVE)
-  isProfileComplete      Boolean   @default(false)
-  isEmailVerified        Boolean   @default(false)          
-  isPhoneVerified        Boolean   @default(false)          
-  verificationToken      String?   @db.VarChar(6)           // verification code
-  verificationExpires    DateTime?                          // Token expiry time
+enum OrderStatus {
+  PENDING       
+  CONFIRMED     
+  PROCESSING    
+  SHIPPED       
+  DELIVERED     
+  CANCELLED     
+  RETURNED     
+  FAILED        
+}
 
-  refreshToken           String?   @db.VarChar(255)         // For JWT-based sessions
-  lastLogin              DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  deletedAt              DateTime?
+
+enum PaymentMethod {
+  SSLCommerz
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+  RETURNED
+  FAILED
+}
+
+model User {
+  id                  String     @id @default(uuid())
+  email               String?    @unique @db.VarChar(255)
+  phone               String?    @unique @db.VarChar(20)
+  password            String     @db.VarChar(255)
+  firstName           String?    @db.VarChar(50)
+  lastName            String?    @db.VarChar(50)
+  avatar              String?    @db.VarChar(255)
+  role                Role       @default(USER)
+  status              Status     @default(ACTIVE)
+  isProfileComplete   Boolean    @default(false)
+  isEmailVerified     Boolean    @default(false)
+  isPhoneVerified     Boolean    @default(false)
+  verificationToken   String?    @db.VarChar(6)
+  verificationExpires DateTime?
+  refreshToken        String?    @db.VarChar(255)
+  lastLogin           DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  cartItems           CartItem[]
+  orders              Order[]
+  reviews             Review[]
+  addresses           Address[]
 
   @@index([firstName])
 }
 
-
 model Product {
-  id               Int          @id @default(autoincrement())
-  sku              String?      @unique
-  slug             String       @unique @index
+  id               Int            @id @default(autoincrement())
+  sku              String?        @unique
+  slug             String         @unique @index
   name             String
   description      String?
   metaTitle        String?
   metaDesc         String?
-  price            Decimal      @db.Decimal(18, 4)
-  discountPrice    Decimal?     @db.Decimal(18, 4)
+  price            Decimal        @db.Decimal(18, 4)
+  discountPrice    Decimal?       @db.Decimal(18, 4)
   primaryImageUrl  String?
   images           ProductImage[]
-  stock            Int          @default(0)
-  status           Status       @default(ACTIVE)
-  categoryId       Int          @index
-  category         Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  brandId          Int?         @index
-  brand            Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  stock            Int            @default(0)
+  status           Status         @default(ACTIVE)
+  brandId          Int?           @index
+  brand            Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  categoryId       Int            @index
+  category         Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   attributes       Json?
   deletedAt        DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tags             ProductTag[]
+  cartItems        CartItem[]
+  orderItems       OrderItem[]
+  reviews          Review[]
 }
+
+model Tag {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique
+  products  ProductTag[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?     
+}
+
+model ProductTag {
+  id        Int      @id @default(autoincrement())
+  productId Int      @index
+  tagId     Int      @index
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? 
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@unique([productId, tagId])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    String   @index
+  productId Int
+  quantity  Int      @default(1)
+  deletedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id                 Int             @id @default(autoincrement())
+  userId             String          @index
+  totalAmount        Decimal         @db.Decimal(18, 4)
+  orderStatus        OrderStatus     @default(PENDING)
+  shippingAddressId  Int?
+  billingAddressId   Int?
+  deletedAt          DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingAddress    Address?        @relation("ShippingAddress", fields: [shippingAddressId], references: [id], onDelete: Restrict)
+  billingAddress     Address?        @relation("BillingAddress", fields: [billingAddressId], references: [id], onDelete: Restrict)
+  orderItems         OrderItem[]
+  shipments          Shipment[]      @relation("OrderShipment")
+  payment            Payment?
+
+  @@index([orderStatus])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id            Int       @id @default(autoincrement())
+  orderId       Int
+  productId     Int
+  productName   String    
+  productSku    String?   
+  price         Decimal   @db.Decimal(18, 4) 
+  quantity      Int       @default(1)
+  totalPrice    Decimal   @db.Decimal(18, 4) 
+  productImage  String?   
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 
 model ProductImage {
   id        Int      @id @default(autoincrement())
@@ -73,11 +188,12 @@ model ProductImage {
   alt       String?
   order     Int      @default(0)
   productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   status    Status   @default(ACTIVE)
   deletedAt DateTime?
   createdAt DateTime @default(now())
-  updatedAt DateTime    @updatedAt
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -88,15 +204,17 @@ model Category {
   description String?
   metaTitle   String?
   metaDesc    String?
-  products    Product[]
   parentId    Int?        @index
-  parent      Category?   @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
-  children    Category[]  @relation("SubCategories")
   depth       Int         @default(0)
   status      Status      @default(ACTIVE)
-  deletedAt   DateTime?   
+  deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  parent      Category?   @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
+  children    Category[]  @relation("SubCategories")
+  products    Product[]
+
   @@unique([name, parentId])
 }
 
@@ -106,11 +224,73 @@ model Brand {
   slug        String      @unique @index
   logoUrl     String?
   description String?
-  products    Product[]
   status      Status      @default(ACTIVE)
-  deletedAt   DateTime?   
+  deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  products    Product[]
 }
 
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int
+  comment   String?
+  userId    String   @index
+  productId Int
+  status    Status   @default(ACTIVE)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id                 Int       @id @default(autoincrement())
+  userId             String
+  street             String
+  city               String
+  state              String?
+  postalCode         String?
+  country            String
+  isDefault          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingOrders     Order[]   @relation("ShippingAddress")
+  billingOrders      Order[]   @relation("BillingAddress")
+}
+
+model Shipment {
+  id             Int             @id @default(autoincrement())
+  orderId        Int             @index
+  trackingNumber String?
+  carrier        String?
+  status         ShipmentStatus  @default(PENDING)
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  order          Order           @relation("OrderShipment", fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              Int              @id @default(autoincrement())
+  orderId         Int              @unique 
+  amount          Decimal          @db.Decimal(18, 4)
+  method          PaymentMethod    @default(COD)
+  status          PaymentStatus    @default(PENDING)
+  channel         String?          // e.g., "Bkash", "Nagad", "Visa"
+  transactionId   String?          @unique
+  currency        String           @default("BDT")
+  paidAt          DateTime?        // When payment is confirmed
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
