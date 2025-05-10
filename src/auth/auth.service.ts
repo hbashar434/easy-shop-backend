@@ -23,7 +23,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailService } from '../common/mail/mail.service';
 import { SmsService } from '../common/sms/sms.service';
 import * as bcrypt from 'bcrypt';
-import { User } from '@prisma/client';
+import { User, Role, Status } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { SafeUser } from './interfaces/auth.interface';
 import {
@@ -91,6 +91,7 @@ export class AuthService {
         refreshToken,
         lastLogin: new Date(),
         ...(user?.password && { isProfileComplete: true }),
+        ...(user?.status === Status.INACTIVE && { status: Status.ACTIVE }),
       },
     });
   }
@@ -193,6 +194,7 @@ export class AuthService {
         verificationToken: verificationCode,
         verificationExpires: this.getVerificationExpiry(),
         password: '', // Required by Prisma schema
+        status: Status.ACTIVE, // Set default status
       },
     });
 
@@ -544,6 +546,7 @@ export class AuthService {
         verificationToken: verificationCode,
         verificationExpires: this.getVerificationExpiry(),
         password: '', // Required by Prisma schema
+        status: Status.ACTIVE, // Set default status
       },
     });
 

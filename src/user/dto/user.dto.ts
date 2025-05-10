@@ -5,8 +5,9 @@ import {
   IsEnum,
   IsBoolean,
   Length,
+  IsUrl,
 } from 'class-validator';
-import { Role } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -30,6 +31,16 @@ export class UpdateUserDto {
   lastName?: string;
 
   @ApiProperty({
+    example: 'https://example.com/avatar.jpg',
+    description: 'User avatar URL',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @IsUrl()
+  avatar?: string;
+
+  @ApiProperty({
     enum: Role,
     description: 'User role',
     required: false,
@@ -39,13 +50,13 @@ export class UpdateUserDto {
   role?: Role;
 
   @ApiProperty({
-    example: true,
-    description: 'User active status',
+    enum: Status,
+    description: 'User status',
     required: false,
   })
-  @IsBoolean()
+  @IsEnum(Status)
   @IsOptional()
-  isActive?: boolean;
+  status?: Status;
 }
 
 export class UserFiltersDto {
@@ -67,13 +78,13 @@ export class UserFiltersDto {
   role?: Role;
 
   @ApiProperty({
-    example: true,
-    description: 'Filter by active status',
+    enum: Status,
+    description: 'Filter by status',
     required: false,
   })
-  @IsBoolean()
+  @IsEnum(Status)
   @IsOptional()
-  isActive?: boolean;
+  status?: Status;
 
   @ApiProperty({
     example: true,
