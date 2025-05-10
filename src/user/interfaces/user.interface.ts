@@ -1,16 +1,17 @@
-import { Role } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 
 export interface UpdateUserDto {
   firstName?: string;
   lastName?: string;
+  avatar?: string;
   role?: Role;
-  isActive?: boolean;
+  status?: Status;
 }
 
 export interface UserFilters {
   search?: string;
   role?: Role;
-  isActive?: boolean;
+  status?: Status;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
   isProfileComplete?: boolean;

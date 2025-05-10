@@ -1,5 +1,4 @@
-import { User } from '@prisma/client';
-import { Role } from '@prisma/client';
+import { User, Role, Status } from '@prisma/client';
 
 export interface AuthResponseType {
   access_token: string;
@@ -7,6 +6,8 @@ export interface AuthResponseType {
     id: string;
     email: string;
     role: Role;
+    status: Status;
+    avatar?: string;
   };
 }
 
@@ -15,7 +16,9 @@ export interface UserResponseType {
   email: string;
   firstName?: string;
   lastName?: string;
+  avatar?: string;
   role: Role;
+  status: Status;
   createdAt: Date;
   updatedAt: Date;
 }

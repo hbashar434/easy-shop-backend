@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 
 export class AuthResponseDto {
   @ApiProperty({
@@ -22,15 +22,16 @@ export class AuthResponseDto {
       phone: '+1234567890',
       firstName: 'John',
       lastName: 'Doe',
+      avatar: 'https://example.com/avatar.jpg',
       role: 'USER',
+      status: 'ACTIVE',
       isEmailVerified: true,
       isPhoneVerified: false,
       isProfileComplete: false,
-      isActive: true,
       lastLogin: '2024-03-20T12:00:00Z',
       createdAt: '2024-03-20T12:00:00Z',
       updatedAt: '2024-03-20T12:00:00Z',
-      deletedAt: '2024-03-20T12:00:00Z',
+      deletedAt: null,
     },
   })
   user: {
@@ -39,11 +40,12 @@ export class AuthResponseDto {
     phone: string | null;
     firstName: string | null;
     lastName: string | null;
+    avatar: string | null;
     role: Role;
+    status: Status;
     isEmailVerified: boolean;
     isPhoneVerified: boolean;
     isProfileComplete: boolean;
-    isActive: boolean;
     lastLogin: Date | null;
     createdAt: Date;
     updatedAt: Date;
