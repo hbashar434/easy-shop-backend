@@ -31,7 +31,6 @@ import {
 } from '@nestjs/swagger';
 import { AuthRequest } from 'src/common/interfaces/request.interface';
 import { UserResponseDto } from './dto/user-response.dto';
-import { ApiAllUserQueries } from './decorators/user-queries.decorator';
 
 @ApiTags('Users')
 @Controller('users')
@@ -52,10 +51,8 @@ export class UserController {
     description: 'User does not have sufficient permissions',
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
-  @ApiAllUserQueries()
   findAll(@Query() query: UserFiltersDto, @Req() req: AuthRequest) {
-    const filters = { ...query, requesterRole: req.user.role as Role };
-    return this.userService.findAll(filters);
+    return this.userService.findAll(query);
   }
 
   @Get(':id')
