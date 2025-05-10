@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 
 export function ApiAllUserQueries() {
   return applyDecorators(
