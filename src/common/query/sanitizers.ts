@@ -27,14 +27,51 @@ function sanitizeWhere<T extends Record<string, any>>(
 function sanitizeSelect<T extends Record<string, any>>(
   select: unknown,
   allowedFields: (keyof T)[],
+  allowedRelations: string[] = [],
+  allowedRelationFields: Record<string, string[]> = {},
 ): Prisma.UserSelect {
   if (!select || typeof select !== 'object') return {};
-  const result: Record<string, boolean> = {};
+  const result: Record<string, any> = {};
   const selectObj = select as Record<string, unknown>;
 
   for (const key in selectObj) {
+    // Handle regular fields
     if (allowedFields.includes(key as keyof T) && selectObj[key] === true) {
       result[key] = true;
+    }
+    // Handle relations
+    else if (
+      allowedRelations.includes(key) &&
+      typeof selectObj[key] === 'object' &&
+      selectObj[key] !== null
+    ) {
+      const relationSelect = selectObj[key] as Record<string, unknown>;
+      if (
+        'select' in relationSelect &&
+        typeof relationSelect.select === 'object'
+      ) {
+        const sanitizedRelationSelect: Record<string, boolean> = {};
+        const relationSelectObj = relationSelect.select as Record<
+          string,
+          unknown
+        >;
+
+        // Only allow fields that are in allowedRelationFields
+        for (const field in relationSelectObj) {
+          if (
+            allowedRelationFields[key]?.includes(field) &&
+            relationSelectObj[field] === true
+          ) {
+            sanitizedRelationSelect[field] = true;
+          }
+        }
+
+        if (Object.keys(sanitizedRelationSelect).length > 0) {
+          result[key] = {
+            select: sanitizedRelationSelect,
+          };
+        }
+      }
     }
   }
   return result;
@@ -106,6 +143,7 @@ export function sanitizeQuery(
   defaultSelect: Prisma.UserSelect,
   allowedFields: (keyof Prisma.UserWhereInput)[],
   allowedRelations: string[],
+  allowedRelationFields: Record<string, string[]> = {},
 ): Prisma.UserFindManyArgs {
   const queryObj = (query as Record<string, unknown>) || {};
 
@@ -115,7 +153,12 @@ export function sanitizeQuery(
     ...dynamicWhere,
   };
 
-  const select = sanitizeSelect(queryObj.select, allowedFields);
+  const select = sanitizeSelect(
+    queryObj.select,
+    allowedFields,
+    allowedRelations,
+    allowedRelationFields,
+  );
   const include = sanitizeInclude(queryObj.include, allowedRelations);
   const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields);
   const { take, skip } = sanitizePagination(queryObj.take, queryObj.skip);

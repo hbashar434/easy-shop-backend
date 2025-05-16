@@ -18,13 +18,13 @@ export const allowedFields: (keyof Prisma.UserWhereInput)[] = [
 ];
 export const allowedRelations = ['addresses'];
 
+export const allowedRelationFields: Record<string, string[]> = {
+  addresses: ['id', 'userId', 'street', 'city'],
+};
+
 export const defaultWhere: Prisma.UserWhereInput = {
   status: Status.ACTIVE,
   deletedAt: null,
-};
-
-export const defaultInclude: Prisma.UserInclude = {
-  addresses: true,
 };
 
 export const defaultSelect: Prisma.UserSelect = {
@@ -48,10 +48,6 @@ export const defaultSelect: Prisma.UserSelect = {
       userId: true,
       street: true,
       city: true,
-      state: true,
-      country: true,
-      postalCode: true,
-      isDefault: true,
     },
   },
 };

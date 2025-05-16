@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/user-update.dto';
-import { Prisma, Role, Status } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 import { sanitizeQuery } from 'src/common/query/sanitizers';
 import {
   allowedFields,
   allowedRelations,
-  defaultInclude,
   defaultSelect,
   defaultWhere,
+  allowedRelationFields,
 } from 'src/constants/user.constants';
 import { UserQueryDto } from './dto/user-query.dto';
 
@@ -23,6 +23,7 @@ export class UserService {
       defaultSelect,
       allowedFields,
       allowedRelations,
+      allowedRelationFields,
     );
 
     return this.prisma.user.findMany(queryOptions);

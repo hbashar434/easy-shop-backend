@@ -53,11 +53,8 @@ export class UserController {
     description: 'User does not have sufficient permissions',
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
-  async findAll(@Query('query', QueryPipe) query: UserQueryDto) {
-    // console.log(query);
-    const result = await this.userService.findAll(query);
-    // console.log('result', result);
-    return result;
+  findAll(@Query('query', QueryPipe) query: UserQueryDto) {
+    return this.userService.findAll(query);
   }
 
   @Get(':id')
