@@ -1,14 +1,31 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateUserDto, UserFiltersDto } from './dto/user.dto';
-import { Role, Status } from '@prisma/client';
+import { UpdateUserDto } from './dto/user-update.dto';
+import { Prisma, Role, Status } from '@prisma/client';
+import { sanitizeQuery } from 'src/common/query/sanitizers';
+import {
+  allowedFields,
+  allowedRelations,
+  defaultInclude,
+  defaultSelect,
+  defaultWhere,
+} from 'src/constants/user.constants';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters: UserFiltersDto) {
-    return this.prisma.user.findMany();
+  async findAll(query: UserQueryDto) {
+    const queryOptions = sanitizeQuery(
+      query,
+      defaultWhere,
+      defaultSelect,
+      allowedFields,
+      allowedRelations,
+    );
+
+    return this.prisma.user.findMany(queryOptions);
   }
 
   async findOne(id: string) {

@@ -13,7 +13,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { UpdateUserDto, UserFiltersDto } from './dto/user.dto';
+import { UpdateUserDto } from './dto/user-update.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,6 +31,8 @@ import {
 } from '@nestjs/swagger';
 import { AuthRequest } from 'src/common/interfaces/request.interface';
 import { UserResponseDto } from './dto/user-response.dto';
+import { QueryPipe } from 'src/common/pipe/query.pipe';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -51,8 +53,11 @@ export class UserController {
     description: 'User does not have sufficient permissions',
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
-  findAll(@Query() query: UserFiltersDto, @Req() req: AuthRequest) {
-    return this.userService.findAll(query);
+  async findAll(@Query('query', QueryPipe) query: UserQueryDto) {
+    // console.log(query);
+    const result = await this.userService.findAll(query);
+    // console.log('result', result);
+    return result;
   }
 
   @Get(':id')
