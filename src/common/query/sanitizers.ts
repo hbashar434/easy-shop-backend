@@ -139,11 +139,12 @@ function sanitizePagination(
 
 export function sanitizeQuery(
   query: unknown,
-  defaultWhere: Prisma.UserWhereInput = {},
-  defaultSelect: Prisma.UserSelect,
   allowedFields: (keyof Prisma.UserWhereInput)[],
   allowedRelations: string[],
   allowedRelationFields: Record<string, string[]> = {},
+  defaultWhere: Prisma.UserWhereInput = {},
+  defaultSelect: Prisma.UserSelect,
+  defaultInclude: Prisma.UserInclude = {},
 ): Prisma.UserFindManyArgs {
   const queryObj = (query as Record<string, unknown>) || {};
 
@@ -172,12 +173,14 @@ export function sanitizeQuery(
 
   if (Object.keys(select).length > 0) {
     queryOptions.select = select;
-  } else if (Object.keys(include).length === 0) {
-    queryOptions.select = defaultSelect;
-  }
-
-  if (Object.keys(include).length > 0) {
+  } else if (Object.keys(include).length > 0) {
     queryOptions.include = include;
+  } else {
+    if (Object.keys(defaultInclude).length > 0) {
+      queryOptions.include = defaultInclude;
+    } else {
+      queryOptions.select = defaultSelect;
+    }
   }
 
   return queryOptions;

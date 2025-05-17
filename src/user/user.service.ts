@@ -9,6 +9,7 @@ import {
   defaultSelect,
   defaultWhere,
   allowedRelationFields,
+  defaultInclude,
 } from 'src/constants/user.constants';
 import { UserQueryDto } from './dto/user-query.dto';
 
@@ -19,12 +20,14 @@ export class UserService {
   async findAll(query: UserQueryDto) {
     const queryOptions = sanitizeQuery(
       query,
-      defaultWhere,
-      defaultSelect,
       allowedFields,
       allowedRelations,
       allowedRelationFields,
+      defaultWhere,
+      defaultSelect,
+      defaultInclude,
     );
+    console.log('Query Options:', queryOptions);
 
     return this.prisma.user.findMany(queryOptions);
   }
