@@ -114,21 +114,49 @@ function sanitizeInclude(
               allowedRelationFields[key].map((field) => [field, true]),
             ),
           };
-        } else {
-          result[key] = true;
         }
       } else if (typeof relationValue === 'object' && relationValue !== null) {
         const relationObj = relationValue as Record<string, unknown>;
+        const sanitizedRelation: Record<string, unknown> = {};
 
-        if ('select' in relationObj) {
+        // Handle select
+        if ('select' in relationObj && typeof relationObj.select === 'object') {
           const sanitizedSelect = sanitizeRelationFields(
             relationObj.select,
             allowedRelationFields[key] || [],
           );
-
           if (Object.keys(sanitizedSelect).length > 0) {
-            result[key] = { select: sanitizedSelect };
+            sanitizedRelation.select = sanitizedSelect;
           }
+        } else if (allowedRelationFields[key]) {
+          // If no select provided but we have allowed fields, use them
+          sanitizedRelation.select = Object.fromEntries(
+            allowedRelationFields[key].map((field) => [field, true]),
+          );
+        }
+
+        // Handle where conditions
+        if ('where' in relationObj && typeof relationObj.where === 'object') {
+          sanitizedRelation.where = relationObj.where;
+        }
+
+        // Handle orderBy
+        if ('orderBy' in relationObj) {
+          if (typeof relationObj.orderBy === 'object') {
+            sanitizedRelation.orderBy = relationObj.orderBy;
+          }
+        }
+
+        // Handle pagination
+        if ('take' in relationObj && typeof relationObj.take === 'number') {
+          sanitizedRelation.take = relationObj.take;
+        }
+        if ('skip' in relationObj && typeof relationObj.skip === 'number') {
+          sanitizedRelation.skip = relationObj.skip;
+        }
+
+        if (Object.keys(sanitizedRelation).length > 0) {
+          result[key] = sanitizedRelation;
         }
       }
     }

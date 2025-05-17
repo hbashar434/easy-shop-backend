@@ -36,13 +36,13 @@ import { UserQueryDto } from './dto/user-query.dto';
 
 @ApiTags('Users')
 @Controller('users')
-// @UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  // @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get all users with filters' })
   @ApiOkResponse({
     description: 'List of users retrieved successfully',
@@ -54,8 +54,6 @@ export class UserController {
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
   findAll(@Query('query', QueryPipe) query: UserQueryDto) {
-    console.log('Query:', query);
-
     return this.userService.findAll(query);
   }
 

@@ -55,7 +55,7 @@ export const defaultSelect: Prisma.UserSelect = {
 export const defaultInclude: Prisma.UserInclude = {
   addresses: {
     where: {
-      isDefault: true,
+      isDefault: false,
     },
     orderBy: {
       createdAt: 'desc',
@@ -69,5 +69,6 @@ export const defaultInclude: Prisma.UserInclude = {
       country: true,
       isDefault: true,
     },
+    take: 1,
   },
 };
