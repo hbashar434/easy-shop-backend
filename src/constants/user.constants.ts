@@ -27,6 +27,10 @@ export const defaultWhere: Prisma.UserWhereInput = {
   deletedAt: null,
 };
 
+export const defaultInclude: Prisma.UserInclude = {
+  addresses: true,
+};
+
 export const defaultSelect: Prisma.UserSelect = {
   id: true,
   email: true,
@@ -42,12 +46,4 @@ export const defaultSelect: Prisma.UserSelect = {
   lastLogin: true,
   createdAt: true,
   updatedAt: true,
-  addresses: {
-    select: {
-      id: true,
-      userId: true,
-      street: true,
-      city: true,
-    },
-  },
 };
