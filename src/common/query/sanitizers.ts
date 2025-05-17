@@ -77,9 +77,26 @@ function sanitizeSelect<T extends Record<string, any>>(
   return result;
 }
 
+function sanitizeRelationFields(
+  relationData: unknown,
+  allowedFields: string[],
+): Record<string, boolean> {
+  if (!relationData || typeof relationData !== 'object') return {};
+  const result: Record<string, boolean> = {};
+  const relationObj = relationData as Record<string, unknown>;
+
+  for (const key in relationObj) {
+    if (allowedFields.includes(key) && relationObj[key] === true) {
+      result[key] = true;
+    }
+  }
+  return result;
+}
+
 function sanitizeInclude(
   include: unknown,
   allowedRelations: string[],
+  allowedRelationFields: Record<string, string[]> = {},
 ): Prisma.UserInclude {
   if (!include || typeof include !== 'object') return {};
   const result: Record<string, unknown> = {};
@@ -87,7 +104,33 @@ function sanitizeInclude(
 
   for (const key in includeObj) {
     if (allowedRelations.includes(key)) {
-      result[key] = includeObj[key];
+      const relationValue = includeObj[key];
+
+      if (relationValue === true) {
+        // If it's just true, we need to restrict fields
+        if (allowedRelationFields[key]) {
+          result[key] = {
+            select: Object.fromEntries(
+              allowedRelationFields[key].map((field) => [field, true]),
+            ),
+          };
+        } else {
+          result[key] = true;
+        }
+      } else if (typeof relationValue === 'object' && relationValue !== null) {
+        const relationObj = relationValue as Record<string, unknown>;
+
+        if ('select' in relationObj) {
+          const sanitizedSelect = sanitizeRelationFields(
+            relationObj.select,
+            allowedRelationFields[key] || [],
+          );
+
+          if (Object.keys(sanitizedSelect).length > 0) {
+            result[key] = { select: sanitizedSelect };
+          }
+        }
+      }
     }
   }
   return result;
@@ -154,13 +197,19 @@ export function sanitizeQuery(
     ...dynamicWhere,
   };
 
-  const select = sanitizeSelect(
+  const userSelect = sanitizeSelect(
     queryObj.select,
     allowedFields,
     allowedRelations,
     allowedRelationFields,
   );
-  const include = sanitizeInclude(queryObj.include, allowedRelations);
+
+  const userInclude = sanitizeInclude(
+    queryObj.include,
+    allowedRelations,
+    allowedRelationFields,
+  );
+
   const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields);
   const { take, skip } = sanitizePagination(queryObj.take, queryObj.skip);
 
@@ -171,17 +220,31 @@ export function sanitizeQuery(
     skip,
   };
 
-  if (Object.keys(select).length > 0) {
-    queryOptions.select = select;
-  } else if (Object.keys(include).length > 0) {
-    queryOptions.include = include;
-  } else {
-    if (Object.keys(defaultInclude).length > 0) {
-      queryOptions.include = defaultInclude;
-    } else {
-      queryOptions.select = defaultSelect;
-    }
+  // Start with base select from defaultSelect
+  const finalSelect: Record<string, any> = { ...defaultSelect };
+
+  // If user specified select fields, merge them
+  if (Object.keys(userSelect).length > 0) {
+    Object.assign(finalSelect, userSelect);
   }
 
+  // If user specified include or we have defaultInclude, convert to select
+  if (Object.keys(userInclude).length > 0) {
+    // Convert include to select structure
+    Object.entries(userInclude).forEach(([relation, config]) => {
+      if (config && typeof config === 'object' && 'select' in config) {
+        finalSelect[relation] = config;
+      }
+    });
+  } else if (Object.keys(defaultInclude).length > 0) {
+    // Convert defaultInclude to select structure
+    Object.entries(defaultInclude).forEach(([relation, config]) => {
+      if (config && typeof config === 'object' && 'select' in config) {
+        finalSelect[relation] = config;
+      }
+    });
+  }
+
+  queryOptions.select = finalSelect;
   return queryOptions;
 }
