@@ -1,117 +1,39 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateUserDto, UserFiltersDto } from './dto/user.dto';
+import { UpdateUserDto } from './dto/user-update.dto';
 import { Role, Status } from '@prisma/client';
+import { sanitizeQuery } from 'src/common/query/sanitizers';
+import {
+  allowedFields,
+  allowedRelations,
+  defaultSelect,
+  defaultWhere,
+  allowedRelationFields,
+  defaultInclude,
+} from 'src/constants/user.constants';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(filters: UserFiltersDto & { requesterRole: Role }) {
-    const {
-      search,
-      role,
-      status,
-      isEmailVerified,
-      isPhoneVerified,
-      isProfileComplete,
-      startDate,
-      endDate,
-      requesterRole,
-    } = filters;
+  async findAll(query: UserQueryDto) {
+    const queryOptions = sanitizeQuery(
+      query,
+      allowedFields,
+      allowedRelations,
+      allowedRelationFields,
+      defaultWhere,
+      defaultSelect,
+      defaultInclude,
+    );
 
-    // Build where clause
-    const where = {
-      deletedAt: null,
-      // Non-admin users can only see USER role accounts
-      ...(requesterRole !== Role.ADMIN && {
-        role: Role.USER,
-      }),
-      // Apply role filter for admins
-      ...(requesterRole === Role.ADMIN &&
-        role && {
-          role,
-        }),
-      // Status filter
-      ...(status && { status }),
-      // Email verification filter
-      ...(isEmailVerified !== undefined && {
-        isEmailVerified,
-      }),
-      // Phone verification filter
-      ...(isPhoneVerified !== undefined && {
-        isPhoneVerified,
-      }),
-      // Profile completion filter
-      ...(isProfileComplete !== undefined && {
-        isProfileComplete,
-      }),
-      // Date range filter
-      ...(startDate && {
-        createdAt: {
-          gte: startDate,
-          ...(endDate && { lte: endDate }),
-        },
-      }),
-      // Search filter
-      ...(search && {
-        OR: [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { email: { contains: search } },
-          { phone: { contains: search } },
-        ],
-      }),
-    };
-
-    return this.prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        role: true,
-        status: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        isProfileComplete: true,
-        verificationToken: true,
-        verificationExpires: true,
-        refreshToken: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-      },
-    });
+    return this.prisma.user.findMany(queryOptions);
   }
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id, deletedAt: null },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        role: true,
-        status: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        isProfileComplete: true,
-        verificationToken: true,
-        verificationExpires: true,
-        refreshToken: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-      },
     });
 
     if (!user) {
