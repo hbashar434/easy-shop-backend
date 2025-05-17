@@ -27,7 +27,6 @@ export class UserService {
       defaultSelect,
       defaultInclude,
     );
-    console.log('Query Options:', queryOptions);
 
     return this.prisma.user.findMany(queryOptions);
   }
