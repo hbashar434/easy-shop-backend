@@ -31,9 +31,21 @@ export class UserService {
     return this.prisma.user.findMany(queryOptions);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, query?: UserQueryDto) {
+    const queryOptions = sanitizeQuery(
+      query,
+      allowedFields,
+      allowedRelations,
+      allowedRelationFields,
+      { ...defaultWhere, id },
+      defaultSelect,
+      {},
+    );
+    console.log('query options', queryOptions);
+
     const user = await this.prisma.user.findUnique({
-      where: { id, deletedAt: null },
+      where: { id },
+      select: queryOptions.select,
     });
 
     if (!user) {
