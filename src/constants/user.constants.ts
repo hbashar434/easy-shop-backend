@@ -72,3 +72,20 @@ export const defaultIncludeForUser: Prisma.UserInclude = {
     take: 1,
   },
 };
+
+export const forbiddenFieldsForUserUpdate = [
+  'id',
+  'email',
+  'phone',
+  'password',
+  'isEmailVerified',
+  'isPhoneVerified',
+  'isProfileComplete',
+  'verificationToken',
+  'verificationExpires',
+  'refreshToken',
+  'lastLogin',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+];

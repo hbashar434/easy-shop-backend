@@ -1,12 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsString,
-  IsEnum,
-  IsBoolean,
-  Length,
-  IsUrl,
-} from 'class-validator';
+import { IsOptional, IsString, IsEnum, Length, IsUrl } from 'class-validator';
 import { Role, Status } from '@prisma/client';
 
 export class UpdateUserDto {
@@ -42,7 +35,7 @@ export class UpdateUserDto {
 
   @ApiProperty({
     enum: Role,
-    description: 'User role',
+    example: Role.USER,
     required: false,
   })
   @IsEnum(Role)
