@@ -8,9 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
-  HttpCode,
-  HttpStatus,
-  Req,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/user-update.dto';
@@ -36,7 +34,7 @@ import { UserQueryDto } from './dto/user-query.dto';
 
 @ApiTags('Users')
 @Controller('users')
-// @UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -84,7 +82,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.USER)
   @ApiOperation({ summary: 'Update user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
@@ -106,13 +104,13 @@ export class UserController {
   update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @Request() req: AuthRequest,
   ): Promise<UserResponseDto> {
-    return this.userService.update(id, updateUserDto);
+    return this.userService.update(id, updateUserDto, req);
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN) // Only admin can delete users
-  @HttpCode(HttpStatus.OK)
+  // @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete user (soft delete)' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
@@ -144,7 +142,7 @@ export class UserController {
   }
 
   @Post(':id/restore')
-  @Roles(Role.ADMIN) // Only admin can restore users
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Restore deleted user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
