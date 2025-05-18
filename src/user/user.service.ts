@@ -5,7 +5,7 @@ import { Prisma, Role, Status } from '@prisma/client';
 import {
   sanitizeQuery,
   sanitizeQueryForUnique,
-} from 'src/common/query/sanitizers';
+} from 'src/common/sanitizers/query-sanitizers';
 import {
   allowedFieldsForUser,
   allowedRelationsForUser,
