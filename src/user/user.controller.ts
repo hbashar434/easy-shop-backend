@@ -37,7 +37,7 @@ import { UserQueryDto } from './dto/user-query.dto';
 @ApiTags('Users')
 @Controller('users')
 // @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+// @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
 

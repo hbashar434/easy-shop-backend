@@ -8,13 +8,14 @@ import {
 } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { SendMailDto, SendBulkMailDto } from './dto/send-mail.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 
 @ApiTags('Mail')
 @Controller('mail')
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 
+  @ApiExcludeEndpoint()
   @Get('test-single')
   @ApiOperation({ summary: 'Test single email sending' })
   async testSingleMail() {
@@ -46,6 +47,7 @@ export class MailController {
     }
   }
 
+  @ApiExcludeEndpoint()
   @Get('test-bulk')
   @ApiOperation({ summary: 'Test bulk email sending' })
   async testBulkMail() {

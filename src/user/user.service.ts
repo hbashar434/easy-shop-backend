@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/user-update.dto';
-import { Prisma, Role, Status } from '@prisma/client';
+import { Role, Status } from '@prisma/client';
 import {
   sanitizeQuery,
   sanitizeQueryForUnique,
@@ -75,26 +75,7 @@ export class UserService {
     return this.prisma.user.update({
       where: { id },
       data: updateUserDto,
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        role: true,
-        status: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        isProfileComplete: true,
-        verificationToken: true,
-        verificationExpires: true,
-        refreshToken: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-      },
+      select: defaultSelectForUser,
     });
   }
 
