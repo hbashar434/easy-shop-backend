@@ -276,3 +276,28 @@ export function sanitizeQuery(
   queryOptions.select = finalSelect;
   return queryOptions;
 }
+
+export function sanitizeQueryForUnique(
+  query: unknown,
+  allowedFields: (keyof Prisma.UserWhereInput)[],
+  allowedRelations: string[],
+  allowedRelationFields: Record<string, string[]> = {},
+  defaultWhere: Prisma.UserWhereUniqueInput,
+  defaultSelect: Prisma.UserSelect,
+  defaultInclude: Prisma.UserInclude = {},
+): Prisma.UserFindUniqueArgs {
+  const queryOptions = sanitizeQuery(
+    query,
+    allowedFields,
+    allowedRelations,
+    allowedRelationFields,
+    defaultWhere,
+    defaultSelect,
+    defaultInclude,
+  );
+
+  return {
+    where: queryOptions.where as Prisma.UserWhereUniqueInput,
+    select: queryOptions.select,
+  };
+}
