@@ -35,15 +35,6 @@ export class UserResponseDto {
   @ApiProperty({ example: false })
   isPhoneVerified: boolean;
 
-  @ApiProperty({ example: null, nullable: true })
-  verificationToken: string | null;
-
-  @ApiProperty({ example: null, nullable: true })
-  verificationExpires: Date | null;
-
-  @ApiProperty({ example: null, nullable: true })
-  refreshToken: string | null;
-
   @ApiProperty({ example: '2025-01-01T00:00:00Z', nullable: true })
   lastLogin: Date | null;
 

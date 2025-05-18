@@ -7,7 +7,12 @@ import {
   Get,
 } from '@nestjs/common';
 import { SmsService } from './sms.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { SendSmsDto, SendBulkSmsDto } from './dto/send-sms.dto';
 
 @ApiTags('SMS')
@@ -15,6 +20,7 @@ import { SendSmsDto, SendBulkSmsDto } from './dto/send-sms.dto';
 export class SmsController {
   constructor(private readonly smsService: SmsService) {}
 
+  @ApiExcludeEndpoint()
   @Get('test-single')
   @ApiOperation({ summary: 'Test single SMS sending with template' })
   @ApiResponse({
@@ -47,7 +53,7 @@ export class SmsController {
       throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
     }
   }
-
+  @ApiExcludeEndpoint()
   @Get('test-bulk')
   @ApiOperation({ summary: 'Test bulk SMS sending with templates' })
   @ApiResponse({
