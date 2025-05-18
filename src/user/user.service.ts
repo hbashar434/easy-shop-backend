@@ -15,6 +15,7 @@ import {
   defaultIncludeForUser,
 } from 'src/constants/user.constants';
 import { UserQueryDto } from './dto/user-query.dto';
+import { AuthRequest } from 'src/common/interfaces/request.interface';
 
 @Injectable()
 export class UserService {
@@ -54,7 +55,7 @@ export class UserService {
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, req: AuthRequest) {
     const user = await this.prisma.user.findUnique({
       where: { id, deletedAt: null },
     });
@@ -63,13 +64,21 @@ export class UserService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Prevent changing admin role unless you're an admin
+    // Never allow changing admin's role or status
     if (
       user.role === Role.ADMIN &&
-      updateUserDto.role &&
-      updateUserDto.role !== Role.ADMIN
+      (updateUserDto.role || updateUserDto.status)
     ) {
-      throw new Error('Cannot modify admin role');
+      throw new Error('Cannot modify admin role or status');
+    }
+
+    // Only allow admin and manager to update role and status for non-admin users
+    if (
+      (updateUserDto.role || updateUserDto.status) &&
+      (req.user.role as Role) !== Role.ADMIN &&
+      (req.user.role as Role) !== Role.MANAGER
+    ) {
+      throw new Error('Only admin and manager can modify role and status');
     }
 
     return this.prisma.user.update({
