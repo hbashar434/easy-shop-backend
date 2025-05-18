@@ -1,6 +1,6 @@
 import { Prisma, Status } from '@prisma/client';
 
-export const allowedFields: (keyof Prisma.UserWhereInput)[] = [
+export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
   'id',
   'email',
   'phone',
@@ -16,9 +16,9 @@ export const allowedFields: (keyof Prisma.UserWhereInput)[] = [
   'updatedAt',
 ];
 
-export const allowedRelations = ['addresses'];
+export const allowedRelationsForUser = ['addresses'];
 
-export const allowedRelationFields: Record<string, string[]> = {
+export const allowedRelationFieldsForUser: Record<string, string[]> = {
   addresses: [
     'id',
     'street',
@@ -30,12 +30,12 @@ export const allowedRelationFields: Record<string, string[]> = {
   ],
 };
 
-export const defaultWhere: Prisma.UserWhereInput = {
+export const defaultWhereForUser: Prisma.UserWhereInput = {
   status: Status.ACTIVE,
   deletedAt: null,
 };
 
-export const defaultSelect: Prisma.UserSelect = {
+export const defaultSelectForUser: Prisma.UserSelect = {
   id: true,
   email: true,
   phone: true,
@@ -52,7 +52,7 @@ export const defaultSelect: Prisma.UserSelect = {
   updatedAt: true,
 };
 
-export const defaultInclude: Prisma.UserInclude = {
+export const defaultIncludeForUser: Prisma.UserInclude = {
   addresses: {
     where: {
       isDefault: false,

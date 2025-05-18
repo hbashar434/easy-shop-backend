@@ -1,15 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/user-update.dto';
-import { Role, Status } from '@prisma/client';
-import { sanitizeQuery } from 'src/common/query/sanitizers';
+import { Prisma, Role, Status } from '@prisma/client';
 import {
-  allowedFields,
-  allowedRelations,
-  defaultSelect,
-  defaultWhere,
-  allowedRelationFields,
-  defaultInclude,
+  sanitizeQuery,
+  sanitizeQueryForUnique,
+} from 'src/common/query/sanitizers';
+import {
+  allowedFieldsForUser,
+  allowedRelationsForUser,
+  defaultSelectForUser,
+  defaultWhereForUser,
+  allowedRelationFieldsForUser,
+  defaultIncludeForUser,
 } from 'src/constants/user.constants';
 import { UserQueryDto } from './dto/user-query.dto';
 
@@ -20,21 +23,29 @@ export class UserService {
   async findAll(query: UserQueryDto) {
     const queryOptions = sanitizeQuery(
       query,
-      allowedFields,
-      allowedRelations,
-      allowedRelationFields,
-      defaultWhere,
-      defaultSelect,
-      defaultInclude,
+      allowedFieldsForUser,
+      allowedRelationsForUser,
+      allowedRelationFieldsForUser,
+      defaultWhereForUser,
+      defaultSelectForUser,
+      defaultIncludeForUser,
     );
 
     return this.prisma.user.findMany(queryOptions);
   }
 
-  async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id, deletedAt: null },
-    });
+  async findOne(id: string, query?: UserQueryDto) {
+    const queryOptions = sanitizeQueryForUnique(
+      query,
+      allowedFieldsForUser,
+      allowedRelationsForUser,
+      allowedRelationFieldsForUser,
+      { id },
+      defaultSelectForUser,
+      {},
+    );
+
+    const user = await this.prisma.user.findUnique(queryOptions);
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

@@ -36,7 +36,7 @@ import { UserQueryDto } from './dto/user-query.dto';
 
 @ApiTags('Users')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -53,12 +53,14 @@ export class UserController {
     description: 'User does not have sufficient permissions',
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
-  findAll(@Query('query', QueryPipe) query: UserQueryDto) {
+  findAll(
+    @Query('query', QueryPipe) query: UserQueryDto,
+  ): Promise<UserResponseDto[]> {
     return this.userService.findAll(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.USER)
   @ApiOperation({ summary: 'Get user by id' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
@@ -74,8 +76,11 @@ export class UserController {
   @ApiNotFoundResponse({
     description: 'User not found',
   })
-  findOne(@Param('id') id: string): Promise<UserResponseDto> {
-    return this.userService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @Query('query', QueryPipe) query?: UserQueryDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.findOne(id, query);
   }
 
   @Patch(':id')
