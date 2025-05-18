@@ -84,7 +84,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.MANAGER)
+  // @Roles(Role.ADMIN, Role.MANAGER, Role.USER)
   @ApiOperation({ summary: 'Update user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
@@ -111,8 +111,7 @@ export class UserController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN) // Only admin can delete users
-  @HttpCode(HttpStatus.OK)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete user (soft delete)' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({
