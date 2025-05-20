@@ -220,19 +220,22 @@ export function sanitizeQuery(
   const queryObj = (query as Record<string, unknown>) || {};
 
   const dynamicWhere = sanitizeWhere(queryObj.where, allowedFields);
-  const where: Prisma.UserWhereInput = {
-    ...defaultWhere,
-    ...dynamicWhere,
-  };
 
-  const userSelect = sanitizeSelect(
+  let where: Prisma.UserWhereInput;
+  if (Object.keys(dynamicWhere).length > 0) {
+    where = dynamicWhere;
+  } else {
+    where = defaultWhere;
+  }
+
+  const dynamicSelect = sanitizeSelect(
     queryObj.select,
     allowedFields,
     allowedRelations,
     allowedRelationFields,
   );
 
-  const userInclude = sanitizeInclude(
+  const dynamicInclude = sanitizeInclude(
     queryObj.include,
     allowedRelations,
     allowedRelationFields,
@@ -248,29 +251,42 @@ export function sanitizeQuery(
     skip,
   };
 
-  // Start with base select from defaultSelect
-  const finalSelect: Record<string, any> = { ...defaultSelect };
+  let finalSelect: Prisma.UserSelect;
+  if (Object.keys(dynamicSelect).length > 0) {
+    finalSelect = dynamicSelect;
+  } else {
+    finalSelect = { ...defaultSelect };
+  }
 
-  // If user specified select fields, merge them
-  if (Object.keys(userSelect).length > 0) {
-    Object.assign(finalSelect, userSelect);
+  const dynamicExclude = new Set<string>();
+  if ('include' in queryObj && typeof queryObj.include === 'object') {
+    const includeObj = queryObj.include as Record<string, unknown>;
+    for (const key in includeObj) {
+      if (includeObj[key] === false) {
+        dynamicExclude.add(key);
+      }
+    }
   }
 
   // If user specified include or we have defaultInclude, convert to select
-  if (Object.keys(userInclude).length > 0) {
+  if (Object.keys(dynamicInclude).length > 0) {
     // Convert include to select structure
-    Object.entries(userInclude).forEach(([relation, config]) => {
+    Object.entries(dynamicInclude).forEach(([relation, config]) => {
       if (config && typeof config === 'object' && 'select' in config) {
         finalSelect[relation] = config;
       }
     });
   } else if (Object.keys(defaultInclude).length > 0) {
-    // Convert defaultInclude to select structure
-    Object.entries(defaultInclude).forEach(([relation, config]) => {
-      if (config && typeof config === 'object' && 'select' in config) {
+    for (const [relation, config] of Object.entries(defaultInclude)) {
+      if (
+        config &&
+        typeof config === 'object' &&
+        'select' in config &&
+        !dynamicExclude.has(relation)
+      ) {
         finalSelect[relation] = config;
       }
-    });
+    }
   }
 
   queryOptions.select = finalSelect;
