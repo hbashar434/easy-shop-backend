@@ -248,12 +248,11 @@ export function sanitizeQuery(
     skip,
   };
 
-  // Start with base select from defaultSelect
-  const finalSelect: Record<string, any> = { ...defaultSelect };
-
-  // If user specified select fields, merge them
+  let finalSelect: Prisma.UserSelect;
   if (Object.keys(userSelect).length > 0) {
-    Object.assign(finalSelect, userSelect);
+    finalSelect = userSelect;
+  } else {
+    finalSelect = { ...defaultSelect };
   }
 
   // If user specified include or we have defaultInclude, convert to select
