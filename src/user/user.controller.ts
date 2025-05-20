@@ -54,8 +54,6 @@ export class UserController {
   findAll(
     @Query('query', QueryPipe) query: UserQueryDto,
   ): Promise<UserResponseDto[]> {
-    console.log('Finding all users with query:', query);
-
     return this.userService.findAll(query);
   }
 
