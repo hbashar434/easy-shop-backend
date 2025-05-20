@@ -14,6 +14,7 @@ export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
   'lastLogin',
   'createdAt',
   'updatedAt',
+  'deletedAt',
 ];
 
 export const allowedRelationsForUser = ['addresses'];
@@ -55,7 +56,7 @@ export const defaultSelectForUser: Prisma.UserSelect = {
 export const defaultIncludeForUser: Prisma.UserInclude = {
   addresses: {
     where: {
-      isDefault: false,
+      isDefault: true,
     },
     orderBy: {
       createdAt: 'desc',
@@ -65,27 +66,6 @@ export const defaultIncludeForUser: Prisma.UserInclude = {
       street: true,
       city: true,
       state: true,
-      postalCode: true,
-      country: true,
-      isDefault: true,
     },
-    take: 1,
   },
 };
-
-export const forbiddenFieldsForUserUpdate = [
-  'id',
-  'email',
-  'phone',
-  'password',
-  'isEmailVerified',
-  'isPhoneVerified',
-  'isProfileComplete',
-  'verificationToken',
-  'verificationExpires',
-  'refreshToken',
-  'lastLogin',
-  'createdAt',
-  'updatedAt',
-  'deletedAt',
-];
