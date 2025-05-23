@@ -31,7 +31,6 @@ export class UserService {
       defaultSelectForUser,
       defaultIncludeForUser,
     );
-    console.log('Query options:', JSON.stringify(queryOptions, null, 2));
 
     return this.prisma.user.findMany(queryOptions);
   }
@@ -128,26 +127,7 @@ export class UserService {
         deletedAt: null,
         status: Status.ACTIVE,
       },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        role: true,
-        status: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        isProfileComplete: true,
-        verificationToken: true,
-        verificationExpires: true,
-        refreshToken: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-        deletedAt: true,
-      },
+      select: defaultSelectForUser,
     });
   }
 }
