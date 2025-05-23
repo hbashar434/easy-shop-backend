@@ -7,7 +7,6 @@ export interface AuthResponseType {
     email: string;
     role: Role;
     status: Status;
-    avatar?: string;
   };
 }
 
@@ -16,7 +15,6 @@ export interface UserResponseType {
   email: string;
   firstName?: string;
   lastName?: string;
-  avatar?: string;
   role: Role;
   status: Status;
   createdAt: Date;

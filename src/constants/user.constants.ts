@@ -17,7 +17,7 @@ export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
   'deletedAt',
 ];
 
-export const allowedRelationsForUser = ['addresses'];
+export const allowedRelationsForUser = ['addresses', 'avatar'];
 
 export const allowedRelationFieldsForUser: Record<string, string[]> = {
   addresses: [
@@ -29,6 +29,7 @@ export const allowedRelationFieldsForUser: Record<string, string[]> = {
     'country',
     'isDefault',
   ],
+  avatar: ['id', 'url', 'filePurpose', 'entityType', 'entityId'],
 };
 
 export const defaultWhereForUser: Prisma.UserWhereInput = {
@@ -42,7 +43,6 @@ export const defaultSelectForUser: Prisma.UserSelect = {
   phone: true,
   firstName: true,
   lastName: true,
-  avatar: true,
   role: true,
   status: true,
   isProfileComplete: true,
@@ -54,6 +54,11 @@ export const defaultSelectForUser: Prisma.UserSelect = {
 };
 
 export const defaultIncludeForUser: Prisma.UserInclude = {
+  avatar: {
+    select: {
+      url: true,
+    },
+  },
   addresses: {
     where: {
       isDefault: true,

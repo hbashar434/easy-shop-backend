@@ -22,7 +22,6 @@ export class AuthResponseDto {
       phone: '+1234567890',
       firstName: 'John',
       lastName: 'Doe',
-      avatar: 'https://example.com/avatar.jpg',
       role: 'USER',
       status: 'ACTIVE',
       isEmailVerified: true,
@@ -40,7 +39,6 @@ export class AuthResponseDto {
     phone: string | null;
     firstName: string | null;
     lastName: string | null;
-    avatar: string | null;
     role: Role;
     status: Status;
     isEmailVerified: boolean;

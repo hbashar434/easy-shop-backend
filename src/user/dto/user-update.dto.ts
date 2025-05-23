@@ -24,16 +24,6 @@ export class UpdateUserDto {
   lastName?: string;
 
   @ApiProperty({
-    example: 'https://example.com/avatar.jpg',
-    description: 'User avatar URL',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  @IsUrl()
-  avatar?: string;
-
-  @ApiProperty({
     enum: Role,
     example: Role.USER,
     required: false,
