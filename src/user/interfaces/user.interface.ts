@@ -3,7 +3,6 @@ import { Role, Status } from '@prisma/client';
 export interface UpdateUserDto {
   firstName?: string;
   lastName?: string;
-  avatar?: string;
   role?: Role;
   status?: Status;
 }
