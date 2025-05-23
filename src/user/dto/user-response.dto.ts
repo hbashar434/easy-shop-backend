@@ -17,9 +17,6 @@ export class UserResponseDto {
   @ApiProperty({ example: 'Doe', nullable: true })
   lastName: string | null;
 
-  @ApiProperty({ example: 'https://example.com/avatar.jpg', nullable: true })
-  avatar: string | null;
-
   @ApiProperty({ enum: Role, example: Role.USER })
   role: Role;
 
