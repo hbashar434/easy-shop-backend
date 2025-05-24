@@ -15,6 +15,7 @@ export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
   'createdAt',
   'updatedAt',
   'deletedAt',
+  'avatar',
 ];
 
 export const allowedRelationsForUser = ['addresses', 'avatar'];
@@ -35,6 +36,12 @@ export const allowedRelationFieldsForUser: Record<string, string[]> = {
 export const defaultWhereForUser: Prisma.UserWhereInput = {
   status: Status.ACTIVE,
   deletedAt: null,
+};
+
+export const defaultWhereForUniqueUser: Prisma.UserWhereUniqueInput = {
+  id: '',
+  email: '',
+  phone: '',
 };
 
 export const defaultSelectForUser: Prisma.UserSelect = {
