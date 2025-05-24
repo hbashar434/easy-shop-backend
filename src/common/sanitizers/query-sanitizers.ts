@@ -5,10 +5,21 @@ type SanitizedOrderBy = Record<string, OrderByDirection>;
 type QueryValue = string | number | boolean | null;
 type WhereInput = Record<string, QueryValue>;
 
+// Generic type that represents any Prisma model's args
+type PrismaModelArgs = {
+  where?: Record<string, any>;
+  select?: Record<string, any>;
+  include?: Record<string, any>;
+  orderBy?: Record<string, any> | Array<Record<string, any>>;
+  take?: number;
+  skip?: number;
+};
+
+// Generic function to sanitize any model's where clause
 function sanitizeWhere<T extends Record<string, any>>(
   where: unknown,
   allowedFields: (keyof T)[],
-): Prisma.UserWhereInput {
+): WhereInput {
   if (!where || typeof where !== 'object') return {};
   const result: Record<string, any> = {};
   const whereObj = where as Record<string, unknown>;
@@ -24,12 +35,13 @@ function sanitizeWhere<T extends Record<string, any>>(
   return result;
 }
 
+// Generic function to sanitize any model's select clause
 function sanitizeSelect<T extends Record<string, any>>(
   select: unknown,
   allowedFields: (keyof T)[],
   allowedRelations: string[] = [],
   allowedRelationFields: Record<string, string[]> = {},
-): Prisma.UserSelect {
+): Record<string, any> {
   if (!select || typeof select !== 'object') return {};
   const result: Record<string, any> = {};
   const selectObj = select as Record<string, unknown>;
@@ -93,11 +105,12 @@ function sanitizeRelationFields(
   return result;
 }
 
+// Generic function to sanitize any model's include clause
 function sanitizeInclude(
   include: unknown,
   allowedRelations: string[],
   allowedRelationFields: Record<string, string[]> = {},
-): Prisma.UserInclude {
+): Record<string, unknown> {
   if (!include || typeof include !== 'object') return {};
   const result: Record<string, unknown> = {};
   const includeObj = include as Record<string, unknown>;
@@ -141,10 +154,11 @@ function sanitizeInclude(
         }
 
         // Handle orderBy
-        if ('orderBy' in relationObj) {
-          if (typeof relationObj.orderBy === 'object') {
-            sanitizedRelation.orderBy = relationObj.orderBy;
-          }
+        if (
+          'orderBy' in relationObj &&
+          typeof relationObj.orderBy === 'object'
+        ) {
+          sanitizedRelation.orderBy = relationObj.orderBy;
         }
 
         // Handle pagination
@@ -164,14 +178,15 @@ function sanitizeInclude(
   return result;
 }
 
+// Generic function to sanitize any model's orderBy clause
 function sanitizeOrderBy(
   orderBy: unknown,
   allowedFields: string[],
-): Prisma.UserOrderByWithRelationInput[] {
+): Record<string, OrderByDirection>[] {
   if (!orderBy || typeof orderBy !== 'object') return [];
 
   const orderArray = Array.isArray(orderBy) ? orderBy : [orderBy];
-  const sanitized: Prisma.UserOrderByWithRelationInput[] = [];
+  const sanitized: Record<string, OrderByDirection>[] = [];
 
   for (const obj of orderArray) {
     if (typeof obj !== 'object' || obj === null) continue;
@@ -191,7 +206,7 @@ function sanitizeOrderBy(
     }
 
     if (Object.keys(clean).length > 0) {
-      sanitized.push(clean as Prisma.UserOrderByWithRelationInput);
+      sanitized.push(clean);
     }
   }
 
@@ -208,25 +223,20 @@ function sanitizePagination(
   return { take: sanitizedTake, skip: sanitizedSkip };
 }
 
-export function sanitizeQuery(
+export function sanitizeQuery<T extends Record<string, any>>(
   query: unknown,
-  allowedFields: (keyof Prisma.UserWhereInput)[],
+  allowedFields: (keyof T)[],
   allowedRelations: string[],
   allowedRelationFields: Record<string, string[]> = {},
-  defaultWhere: Prisma.UserWhereInput = {},
-  defaultSelect: Prisma.UserSelect,
-  defaultInclude: Prisma.UserInclude = {},
-): Prisma.UserFindManyArgs {
+  defaultWhere: Record<string, any> = {},
+  defaultSelect: Record<string, any>,
+  defaultInclude: Record<string, any> = {},
+): PrismaModelArgs {
   const queryObj = (query as Record<string, unknown>) || {};
-
   const dynamicWhere = sanitizeWhere(queryObj.where, allowedFields);
 
-  let where: Prisma.UserWhereInput;
-  if (Object.keys(dynamicWhere).length > 0) {
-    where = dynamicWhere;
-  } else {
-    where = defaultWhere;
-  }
+  const where =
+    Object.keys(dynamicWhere).length > 0 ? dynamicWhere : defaultWhere;
 
   const dynamicSelect = sanitizeSelect(
     queryObj.select,
@@ -241,22 +251,20 @@ export function sanitizeQuery(
     allowedRelationFields,
   );
 
-  const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields);
+  const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields as string[]);
   const { take, skip } = sanitizePagination(queryObj.take, queryObj.skip);
 
-  const queryOptions: Prisma.UserFindManyArgs = {
+  const queryOptions: PrismaModelArgs = {
     where,
     orderBy,
     take,
     skip,
   };
 
-  let finalSelect: Prisma.UserSelect;
-  if (Object.keys(dynamicSelect).length > 0) {
-    finalSelect = dynamicSelect;
-  } else {
-    finalSelect = { ...defaultSelect };
-  }
+  const finalSelect: Record<string, unknown> =
+    Object.keys(dynamicSelect).length > 0
+      ? { ...dynamicSelect }
+      : { ...defaultSelect };
 
   const dynamicExclude = new Set<string>();
   if ('include' in queryObj && typeof queryObj.include === 'object') {
@@ -270,10 +278,9 @@ export function sanitizeQuery(
 
   // If user specified include or we have defaultInclude, convert to select
   if (Object.keys(dynamicInclude).length > 0) {
-    // Convert include to select structure
     Object.entries(dynamicInclude).forEach(([relation, config]) => {
       if (config && typeof config === 'object' && 'select' in config) {
-        finalSelect[relation] = config;
+        finalSelect[relation] = config as Record<string, unknown>;
       }
     });
   } else if (Object.keys(defaultInclude).length > 0) {
@@ -284,7 +291,7 @@ export function sanitizeQuery(
         'select' in config &&
         !dynamicExclude.has(relation)
       ) {
-        finalSelect[relation] = config;
+        finalSelect[relation] = config as Record<string, unknown>;
       }
     }
   }
@@ -293,15 +300,18 @@ export function sanitizeQuery(
   return queryOptions;
 }
 
-export function sanitizeQueryForUnique(
+export function sanitizeQueryForUnique<T extends Record<string, any>>(
   query: unknown,
-  allowedFields: (keyof Prisma.UserWhereInput)[],
+  allowedFields: (keyof T)[],
   allowedRelations: string[],
   allowedRelationFields: Record<string, string[]> = {},
-  defaultWhere: Prisma.UserWhereUniqueInput,
-  defaultSelect: Prisma.UserSelect,
-  defaultInclude: Prisma.UserInclude = {},
-): Prisma.UserFindUniqueArgs {
+  defaultWhere: Record<string, any>,
+  defaultSelect: Record<string, any>,
+  defaultInclude: Record<string, any> = {},
+): {
+  where: Prisma.Prisma__Pick<Record<string, any>, 'where'>['where'];
+  select?: Record<string, any>;
+} {
   const queryOptions = sanitizeQuery(
     query,
     allowedFields,
@@ -313,7 +323,7 @@ export function sanitizeQueryForUnique(
   );
 
   return {
-    where: queryOptions.where as Prisma.UserWhereUniqueInput,
+    where: queryOptions.where,
     select: queryOptions.select,
   };
 }

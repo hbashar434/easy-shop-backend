@@ -36,6 +36,8 @@ export class UserService {
   }
 
   async findOne(id: string, query?: UserQueryDto) {
+    console.log('query:', query);
+
     const queryOptions = sanitizeQueryForUnique(
       query,
       allowedFieldsForUser,
@@ -45,6 +47,7 @@ export class UserService {
       defaultSelectForUser,
       {},
     );
+    console.log('Query Options:', queryOptions);
 
     const user = await this.prisma.user.findUnique(queryOptions);
 
