@@ -1,6 +1,9 @@
 import { Prisma, Status } from '@prisma/client';
 
-export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
+// Make sure allowedFields type matches both Select and Where types
+export const allowedFieldsForUser: Array<
+  keyof Prisma.UserWhereInput & keyof Prisma.UserSelect
+> = [
   'id',
   'email',
   'phone',
@@ -35,6 +38,12 @@ export const allowedRelationFieldsForUser: Record<string, string[]> = {
 export const defaultWhereForUser: Prisma.UserWhereInput = {
   status: Status.ACTIVE,
   deletedAt: null,
+};
+
+export const defaultWhereForUniqueUser: Prisma.UserWhereUniqueInput = {
+  id: '',
+  email: '',
+  phone: '',
 };
 
 export const defaultSelectForUser: Prisma.UserSelect = {
