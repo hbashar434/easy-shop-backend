@@ -22,6 +22,8 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(query: UserQueryDto) {
+    console.log('query:', query);
+
     const queryOptions = sanitizeQuery<
       Prisma.UserSelect,
       Prisma.UserWhereInput,
@@ -34,7 +36,7 @@ export class UserService {
       defaultSelect: defaultSelectForUser,
       defaultInclude: defaultIncludeForUser,
     });
-
+    console.log('Query Options:', queryOptions);
     return this.prisma.user.findMany(queryOptions);
   }
 

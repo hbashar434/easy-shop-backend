@@ -19,6 +19,7 @@ export const allowedFieldsForUser: Array<
   'updatedAt',
   'deletedAt',
   'avatar',
+  'addresses',
 ];
 
 export const allowedRelationsForUser = ['addresses', 'avatar'];
