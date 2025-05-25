@@ -1,251 +1,282 @@
 import { Prisma } from '@prisma/client';
 
+// Type Definitions
 type OrderByDirection = 'asc' | 'desc';
 type SanitizedOrderBy = Record<string, OrderByDirection>;
-type QueryValue = string | number | boolean | null;
-type WhereInput = Record<string, QueryValue>;
+type QueryValue = string | number | boolean | null | Date;
 
-// Generic type that represents any Prisma model's args
-type PrismaModelArgs = {
-  where?: Record<string, any>;
-  select?: Record<string, any>;
-  include?: Record<string, any>;
-  orderBy?: Record<string, any> | Array<Record<string, any>>;
+// Generic type for Prisma select/include options
+type PrismaRelationSelect =
+  | {
+      select?: Record<string, any>;
+      where?: Record<string, unknown>;
+      orderBy?: Record<string, OrderByDirection>;
+      take?: number;
+      skip?: number;
+    }
+  | boolean;
+
+type PrismaSelect = Record<string, any>;
+type PrismaInclude = Record<string, any>;
+
+// Generic Prisma model arguments with type-safe select, where, and include
+type PrismaModelArgs<
+  TSelect extends Record<string, any>,
+  TWhere extends Record<string, unknown>,
+  TInclude extends Record<string, any>,
+> = {
+  where?: TWhere;
+  select?: TSelect;
+  include?: TInclude;
+  orderBy?:
+    | Record<string, OrderByDirection>
+    | Array<Record<string, OrderByDirection>>;
   take?: number;
   skip?: number;
 };
 
-// Generic function to sanitize any model's where clause
-function sanitizeWhere<T extends Record<string, any>>(
-  where: unknown,
-  allowedFields: (keyof T)[],
-): WhereInput {
-  if (!where || typeof where !== 'object') return {};
-  const result: Record<string, any> = {};
-  const whereObj = where as Record<string, unknown>;
+// Utility to check if a value is a non-null object
+const isNonNullObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object';
 
-  for (const key in whereObj) {
-    if (
-      allowedFields.includes(key as keyof T) &&
-      typeof whereObj[key] !== 'undefined'
-    ) {
-      result[key] = whereObj[key];
+// Sanitize Where Clause
+function sanitizeWhere<TWhere extends Record<string, unknown>>(
+  where: unknown,
+  allowedFields: Array<keyof TWhere>,
+): TWhere {
+  if (!isNonNullObject(where)) return {} as TWhere;
+  const result = {} as TWhere;
+
+  for (const key of allowedFields) {
+    if (key in where && where[key as keyof typeof where] !== undefined) {
+      result[key] = where[key as keyof typeof where] as TWhere[typeof key];
     }
   }
   return result;
 }
 
-// Generic function to sanitize any model's select clause
-function sanitizeSelect<T extends Record<string, any>>(
+// Sanitize Select Clause
+function sanitizeSelect<TSelect extends Record<string, any>>(
   select: unknown,
-  allowedFields: (keyof T)[],
+  allowedFields: Array<keyof TSelect>,
   allowedRelations: string[] = [],
   allowedRelationFields: Record<string, string[]> = {},
-): Record<string, any> {
-  if (!select || typeof select !== 'object') return {};
-  const result: Record<string, any> = {};
-  const selectObj = select as Record<string, unknown>;
+): TSelect {
+  if (!isNonNullObject(select)) return {} as TSelect;
+  const result = {} as Record<string, any>;
+  const allowedFieldsSet = new Set(allowedFields);
 
-  for (const key in selectObj) {
-    // Handle regular fields
-    if (allowedFields.includes(key as keyof T) && selectObj[key] === true) {
+  for (const key in select) {
+    if (allowedFieldsSet.has(key as keyof TSelect) && select[key] === true) {
       result[key] = true;
-    }
-    // Handle relations
-    else if (
+    } else if (
       allowedRelations.includes(key) &&
-      typeof selectObj[key] === 'object' &&
-      selectObj[key] !== null
+      isNonNullObject(select[key]) &&
+      'select' in select[key] &&
+      isNonNullObject(select[key].select)
     ) {
-      const relationSelect = selectObj[key] as Record<string, unknown>;
-      if (
-        'select' in relationSelect &&
-        typeof relationSelect.select === 'object'
-      ) {
-        const sanitizedRelationSelect: Record<string, boolean> = {};
-        const relationSelectObj = relationSelect.select as Record<
-          string,
-          unknown
-        >;
-
-        // Only allow fields that are in allowedRelationFields
-        for (const field in relationSelectObj) {
-          if (
-            allowedRelationFields[key]?.includes(field) &&
-            relationSelectObj[field] === true
-          ) {
-            sanitizedRelationSelect[field] = true;
-          }
-        }
-
-        if (Object.keys(sanitizedRelationSelect).length > 0) {
-          result[key] = {
-            select: sanitizedRelationSelect,
-          };
-        }
+      const relationSelect = sanitizeRelationFields(
+        select[key].select,
+        allowedRelationFields[key] || [],
+      );
+      if (Object.keys(relationSelect).length > 0) {
+        result[key] = {
+          select: relationSelect,
+        };
       }
     }
   }
-  return result;
+  return result as TSelect;
 }
 
+// Sanitize Relation Fields
 function sanitizeRelationFields(
   relationData: unknown,
   allowedFields: string[],
 ): Record<string, boolean> {
-  if (!relationData || typeof relationData !== 'object') return {};
+  if (!isNonNullObject(relationData)) return {};
   const result: Record<string, boolean> = {};
-  const relationObj = relationData as Record<string, unknown>;
+  const allowedFieldsSet = new Set(allowedFields);
 
-  for (const key in relationObj) {
-    if (allowedFields.includes(key) && relationObj[key] === true) {
+  for (const key of allowedFieldsSet) {
+    if (key in relationData && relationData[key] === true) {
       result[key] = true;
     }
   }
   return result;
 }
 
-// Generic function to sanitize any model's include clause
-function sanitizeInclude(
-  include: unknown,
-  allowedRelations: string[],
-  allowedRelationFields: Record<string, string[]> = {},
-): Record<string, unknown> {
-  if (!include || typeof include !== 'object') return {};
-  const result: Record<string, unknown> = {};
-  const includeObj = include as Record<string, unknown>;
+// Sanitize Relation Where Clause
+function sanitizeRelationWhere(
+  where: unknown,
+  allowedFields: string[],
+): Record<string, QueryValue> {
+  if (!isNonNullObject(where)) return {};
+  const result: Record<string, QueryValue> = {};
+  const allowedFieldsSet = new Set(allowedFields);
 
-  for (const key in includeObj) {
-    if (allowedRelations.includes(key)) {
-      const relationValue = includeObj[key];
-
-      if (relationValue === true) {
-        // If it's just true, we need to restrict fields
-        if (allowedRelationFields[key]) {
-          result[key] = {
-            select: Object.fromEntries(
-              allowedRelationFields[key].map((field) => [field, true]),
-            ),
-          };
-        }
-      } else if (typeof relationValue === 'object' && relationValue !== null) {
-        const relationObj = relationValue as Record<string, unknown>;
-        const sanitizedRelation: Record<string, unknown> = {};
-
-        // Handle select
-        if ('select' in relationObj && typeof relationObj.select === 'object') {
-          const sanitizedSelect = sanitizeRelationFields(
-            relationObj.select,
-            allowedRelationFields[key] || [],
-          );
-          if (Object.keys(sanitizedSelect).length > 0) {
-            sanitizedRelation.select = sanitizedSelect;
-          }
-        } else if (allowedRelationFields[key]) {
-          // If no select provided but we have allowed fields, use them
-          sanitizedRelation.select = Object.fromEntries(
-            allowedRelationFields[key].map((field) => [field, true]),
-          );
-        }
-
-        // Handle where conditions
-        if ('where' in relationObj && typeof relationObj.where === 'object') {
-          sanitizedRelation.where = relationObj.where;
-        }
-
-        // Handle orderBy
-        if (
-          'orderBy' in relationObj &&
-          typeof relationObj.orderBy === 'object'
-        ) {
-          sanitizedRelation.orderBy = relationObj.orderBy;
-        }
-
-        // Handle pagination
-        if ('take' in relationObj && typeof relationObj.take === 'number') {
-          sanitizedRelation.take = relationObj.take;
-        }
-        if ('skip' in relationObj && typeof relationObj.skip === 'number') {
-          sanitizedRelation.skip = relationObj.skip;
-        }
-
-        if (Object.keys(sanitizedRelation).length > 0) {
-          result[key] = sanitizedRelation;
-        }
-      }
+  for (const key of allowedFieldsSet) {
+    if (key in where && where[key] !== undefined) {
+      result[key] = where[key] as QueryValue;
     }
   }
   return result;
 }
 
-// Generic function to sanitize any model's orderBy clause
-function sanitizeOrderBy(
-  orderBy: unknown,
-  allowedFields: string[],
-): Record<string, OrderByDirection>[] {
-  if (!orderBy || typeof orderBy !== 'object') return [];
+// Sanitize Include Clause
+function sanitizeInclude<TInclude extends PrismaInclude>(
+  include: unknown,
+  allowedRelations: string[],
+  allowedRelationFields: Record<string, string[]> = {},
+): TInclude {
+  if (!isNonNullObject(include)) return {} as TInclude;
+  const result = {} as TInclude;
+  const allowedRelationsSet = new Set(allowedRelations);
 
-  const orderArray = Array.isArray(orderBy) ? orderBy : [orderBy];
-  const sanitized: Record<string, OrderByDirection>[] = [];
+  for (const key of allowedRelationsSet) {
+    if (!(key in include)) continue;
+    const relationValue = include[key];
 
-  for (const obj of orderArray) {
-    if (typeof obj !== 'object' || obj === null) continue;
+    if (relationValue === true && allowedRelationFields[key]?.length) {
+      result[key as keyof TInclude] = {
+        select: Object.fromEntries(
+          allowedRelationFields[key].map((field) => [field, true]),
+        ),
+      } as TInclude[keyof TInclude];
+      continue;
+    }
 
-    const clean: SanitizedOrderBy = {};
-    const orderObj = obj as Record<string, unknown>;
+    if (!isNonNullObject(relationValue)) continue;
+    const sanitizedRelation: PrismaRelationSelect = {};
 
-    for (const key in orderObj) {
-      const value = orderObj[key];
-      if (
-        allowedFields.includes(key) &&
-        typeof value === 'string' &&
-        ['asc', 'desc'].includes(value)
-      ) {
-        clean[key] = value as OrderByDirection;
+    if (
+      'select' in relationValue &&
+      isNonNullObject(relationValue.select) &&
+      allowedRelationFields[key]
+    ) {
+      const sanitizedSelect = sanitizeRelationFields(
+        relationValue.select,
+        allowedRelationFields[key],
+      );
+      if (Object.keys(sanitizedSelect).length > 0) {
+        sanitizedRelation.select = sanitizedSelect;
       }
     }
 
+    if ('where' in relationValue && isNonNullObject(relationValue.where)) {
+      sanitizedRelation.where = sanitizeRelationWhere(
+        relationValue.where,
+        allowedRelationFields[key] || [],
+      );
+    }
+
+    if ('orderBy' in relationValue && isNonNullObject(relationValue.orderBy)) {
+      sanitizedRelation.orderBy = sanitizeOrderBy(
+        relationValue.orderBy,
+        allowedRelationFields[key] || [],
+      )[0];
+    }
+
+    if ('take' in relationValue && typeof relationValue.take === 'number') {
+      sanitizedRelation.take = Math.min(relationValue.take, 100);
+    }
+
+    if ('skip' in relationValue && typeof relationValue.skip === 'number') {
+      sanitizedRelation.skip = Math.max(relationValue.skip, 0);
+    }
+
+    if (Object.keys(sanitizedRelation).length > 0) {
+      result[key as keyof TInclude] =
+        sanitizedRelation as TInclude[keyof TInclude];
+    }
+  }
+  return result;
+}
+
+// Sanitize OrderBy Clause
+function sanitizeOrderBy(
+  orderBy: unknown,
+  allowedFields: string[],
+): SanitizedOrderBy[] {
+  if (!orderBy) return [];
+  const orderArray = Array.isArray(orderBy) ? orderBy : [orderBy];
+  const sanitized: SanitizedOrderBy[] = [];
+  const allowedFieldsSet = new Set(allowedFields);
+
+  for (const obj of orderArray) {
+    if (!isNonNullObject(obj)) continue;
+    const clean: SanitizedOrderBy = {};
+
+    for (const key of allowedFieldsSet) {
+      if (key in obj && ['asc', 'desc'].includes(obj[key] as string)) {
+        clean[key] = obj[key] as OrderByDirection;
+      }
+    }
     if (Object.keys(clean).length > 0) {
       sanitized.push(clean);
     }
   }
-
   return sanitized;
 }
 
+// Sanitize Pagination
 function sanitizePagination(
   take: unknown,
   skip: unknown,
 ): { take: number; skip: number } {
-  const sanitizedTake = typeof take === 'number' && take > 0 ? take : 10;
-  const sanitizedSkip = typeof skip === 'number' && skip >= 0 ? skip : 0;
+  const defaultTake = 10;
+  const defaultSkip = 0;
+
+  const sanitizedTake =
+    typeof take === 'number' && Number.isInteger(take) && take > 0
+      ? Math.min(take, 100)
+      : defaultTake;
+  const sanitizedSkip =
+    typeof skip === 'number' && Number.isInteger(skip) && skip >= 0
+      ? skip
+      : defaultSkip;
 
   return { take: sanitizedTake, skip: sanitizedSkip };
 }
 
-export function sanitizeQuery<T extends Record<string, any>>(
+// Main Sanitize Query Function
+export function sanitizeQuery<
+  TSelect extends Record<string, any>,
+  TWhere extends Record<string, unknown>,
+  TInclude extends Record<string, any>,
+>(
   query: unknown,
-  allowedFields: (keyof T)[],
-  allowedRelations: string[],
-  allowedRelationFields: Record<string, string[]> = {},
-  defaultWhere: Record<string, any> = {},
-  defaultSelect: Record<string, any>,
-  defaultInclude: Record<string, any> = {},
-): PrismaModelArgs {
-  const queryObj = (query as Record<string, unknown>) || {};
-  const dynamicWhere = sanitizeWhere(queryObj.where, allowedFields);
+  config: {
+    allowedFields: Array<keyof TSelect & keyof TWhere>;
+    allowedRelations?: string[];
+    allowedRelationFields?: Record<string, string[]>;
+    defaultWhere?: TWhere;
+    defaultSelect?: TSelect;
+    defaultInclude?: TInclude;
+  },
+): PrismaModelArgs<TSelect, TWhere, TInclude> {
+  const {
+    allowedFields,
+    allowedRelations = [],
+    allowedRelationFields = {},
+    defaultWhere = {} as TWhere,
+    defaultSelect = {} as TSelect,
+    defaultInclude = {} as TInclude,
+  } = config;
 
+  const queryObj = isNonNullObject(query) ? query : {};
+  const dynamicWhere = sanitizeWhere<TWhere>(queryObj.where, allowedFields);
   const where =
     Object.keys(dynamicWhere).length > 0 ? dynamicWhere : defaultWhere;
 
-  const dynamicSelect = sanitizeSelect(
+  const dynamicSelect = sanitizeSelect<TSelect>(
     queryObj.select,
     allowedFields,
     allowedRelations,
     allowedRelationFields,
   );
 
-  const dynamicInclude = sanitizeInclude(
+  const dynamicInclude = sanitizeInclude<TInclude>(
     queryObj.include,
     allowedRelations,
     allowedRelationFields,
@@ -254,76 +285,54 @@ export function sanitizeQuery<T extends Record<string, any>>(
   const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields as string[]);
   const { take, skip } = sanitizePagination(queryObj.take, queryObj.skip);
 
-  const queryOptions: PrismaModelArgs = {
+  const queryOptions: PrismaModelArgs<TSelect, TWhere, TInclude> = {
     where,
     orderBy,
     take,
     skip,
   };
 
-  const finalSelect: Record<string, unknown> =
-    Object.keys(dynamicSelect).length > 0
-      ? { ...dynamicSelect }
-      : { ...defaultSelect };
-
-  const dynamicExclude = new Set<string>();
-  if ('include' in queryObj && typeof queryObj.include === 'object') {
-    const includeObj = queryObj.include as Record<string, unknown>;
-    for (const key in includeObj) {
-      if (includeObj[key] === false) {
-        dynamicExclude.add(key);
-      }
-    }
+  if (Object.keys(dynamicSelect).length > 0) {
+    queryOptions.select = dynamicSelect;
+  } else if (Object.keys(defaultSelect).length > 0) {
+    queryOptions.select = defaultSelect;
   }
 
-  // If user specified include or we have defaultInclude, convert to select
   if (Object.keys(dynamicInclude).length > 0) {
-    Object.entries(dynamicInclude).forEach(([relation, config]) => {
-      if (config && typeof config === 'object' && 'select' in config) {
-        finalSelect[relation] = config as Record<string, unknown>;
-      }
-    });
-  } else if (Object.keys(defaultInclude).length > 0) {
-    for (const [relation, config] of Object.entries(defaultInclude)) {
-      if (
-        config &&
-        typeof config === 'object' &&
-        'select' in config &&
-        !dynamicExclude.has(relation)
-      ) {
-        finalSelect[relation] = config as Record<string, unknown>;
-      }
-    }
+    queryOptions.include = dynamicInclude;
+  } else if (Object.keys(defaultInclude).length > 0 && !queryObj.include) {
+    queryOptions.include = defaultInclude;
   }
 
-  queryOptions.select = finalSelect;
   return queryOptions;
 }
 
-export function sanitizeQueryForUnique<T extends Record<string, any>>(
+// Sanitize Query for Unique Records
+export function sanitizeQueryForUnique<
+  TSelect extends Record<string, any>,
+  TWhere extends Record<string, unknown>,
+  TInclude extends Record<string, any>,
+>(
   query: unknown,
-  allowedFields: (keyof T)[],
-  allowedRelations: string[],
-  allowedRelationFields: Record<string, string[]> = {},
-  defaultWhere: Record<string, any>,
-  defaultSelect: Record<string, any>,
-  defaultInclude: Record<string, any> = {},
+  config: {
+    allowedFields: Array<keyof TSelect & keyof TWhere>;
+    allowedRelations?: string[];
+    allowedRelationFields?: Record<string, string[]>;
+    defaultWhere: TWhere;
+    defaultSelect: TSelect;
+    defaultInclude?: TInclude;
+  },
 ): {
-  where: Prisma.Prisma__Pick<Record<string, any>, 'where'>['where'];
-  select?: Record<string, any>;
+  where: TWhere;
+  select?: TSelect;
 } {
-  const queryOptions = sanitizeQuery(
-    query,
-    allowedFields,
-    allowedRelations,
-    allowedRelationFields,
-    defaultWhere,
-    defaultSelect,
-    defaultInclude,
-  );
+  const queryOptions = sanitizeQuery<TSelect, TWhere, TInclude>(query, {
+    ...config,
+    defaultWhere: config.defaultWhere,
+  });
 
   return {
-    where: queryOptions.where,
-    select: queryOptions.select,
+    where: queryOptions.where ?? config.defaultWhere,
+    ...(queryOptions.select && { select: queryOptions.select }),
   };
 }
