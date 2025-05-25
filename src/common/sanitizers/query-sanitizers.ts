@@ -282,6 +282,15 @@ export function sanitizeQuery<
     allowedRelationFields,
   );
 
+  const dynamicExclude = new Set<string>();
+  if (isNonNullObject(queryObj.include)) {
+    for (const [key, value] of Object.entries(queryObj.include)) {
+      if (value === false) {
+        dynamicExclude.add(key);
+      }
+    }
+  }
+
   const orderBy = sanitizeOrderBy(queryObj.orderBy, allowedFields as string[]);
   const { take, skip } = sanitizePagination(queryObj.take, queryObj.skip);
 
@@ -292,16 +301,37 @@ export function sanitizeQuery<
     skip,
   };
 
+  let finalSelect: TSelect = {} as TSelect;
+
   if (Object.keys(dynamicSelect).length > 0) {
-    queryOptions.select = dynamicSelect;
+    finalSelect = { ...dynamicSelect };
   } else if (Object.keys(defaultSelect).length > 0) {
-    queryOptions.select = defaultSelect;
+    finalSelect = { ...defaultSelect };
   }
 
   if (Object.keys(dynamicInclude).length > 0) {
-    queryOptions.include = dynamicInclude;
-  } else if (Object.keys(defaultInclude).length > 0 && !queryObj.include) {
-    queryOptions.include = defaultInclude;
+    for (const [key, config] of Object.entries(dynamicInclude)) {
+      if (config && isNonNullObject(config)) {
+        finalSelect[key as keyof TSelect] = config as TSelect[keyof TSelect];
+      }
+    }
+  }
+
+  if (Object.keys(defaultInclude).length > 0 && !queryObj.include) {
+    for (const [key, config] of Object.entries(defaultInclude)) {
+      if (
+        config &&
+        isNonNullObject(config) &&
+        !dynamicExclude.has(key) &&
+        !(key in finalSelect)
+      ) {
+        finalSelect[key as keyof TSelect] = config as TSelect[keyof TSelect];
+      }
+    }
+  }
+
+  if (Object.keys(finalSelect).length > 0) {
+    queryOptions.select = finalSelect;
   }
 
   return queryOptions;
