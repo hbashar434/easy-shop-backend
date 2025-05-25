@@ -65,39 +65,39 @@ export class UploadService {
     return upload;
   }
 
-  async findAll(query: UploadQueryDto) {
-    const queryOptions = sanitizeQuery(
-      query,
-      allowedFieldsForUpload,
-      allowedRelationsForUpload,
-      allowedRelationFieldsForUpload,
-      defaultWhereForUpload,
-      defaultSelectForUpload,
-      {},
-    );
+  // async findAll(query: UploadQueryDto) {
+  //   const queryOptions = sanitizeQuery(
+  //     query,
+  //     allowedFieldsForUpload,
+  //     allowedRelationsForUpload,
+  //     allowedRelationFieldsForUpload,
+  //     defaultWhereForUpload,
+  //     defaultSelectForUpload,
+  //     {},
+  //   );
 
-    return this.prisma.upload.findMany(queryOptions);
-  }
+  //   return this.prisma.upload.findMany(queryOptions);
+  // }
 
-  async findOne(id: number, query?: UploadQueryDto) {
-    const queryOptions = sanitizeQueryForUnique(
-      query,
-      allowedFieldsForUpload,
-      allowedRelationsForUpload,
-      allowedRelationFieldsForUpload,
-      { id },
-      defaultSelectForUpload,
-      {},
-    );
+  // async findOne(id: number, query?: UploadQueryDto) {
+  //   const queryOptions = sanitizeQueryForUnique(
+  //     query,
+  //     allowedFieldsForUpload,
+  //     allowedRelationsForUpload,
+  //     allowedRelationFieldsForUpload,
+  //     { id },
+  //     defaultSelectForUpload,
+  //     {},
+  //   );
 
-    const upload = await this.prisma.upload.findUnique(queryOptions);
+  //   const upload = await this.prisma.upload.findUnique(queryOptions);
 
-    if (!upload) {
-      throw new BadRequestException(`Upload with ID ${id} not found`);
-    }
+  //   if (!upload) {
+  //     throw new BadRequestException(`Upload with ID ${id} not found`);
+  //   }
 
-    return upload;
-  }
+  //   return upload;
+  // }
 
   async remove(id: number) {
     const upload = await this.prisma.upload.findUnique({

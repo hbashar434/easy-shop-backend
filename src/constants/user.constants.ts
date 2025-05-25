@@ -1,6 +1,9 @@
 import { Prisma, Status } from '@prisma/client';
 
-export const allowedFieldsForUser: (keyof Prisma.UserWhereInput)[] = [
+// Make sure allowedFields type matches both Select and Where types
+export const allowedFieldsForUser: Array<
+  keyof Prisma.UserWhereInput & keyof Prisma.UserSelect
+> = [
   'id',
   'email',
   'phone',

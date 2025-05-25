@@ -90,36 +90,36 @@ export class UploadController {
     );
   }
 
-  @Get()
-  @Roles(Role.ADMIN, Role.MANAGER)
-  @ApiOperation({ summary: 'Get all uploads with filters' })
-  @ApiOkResponse({
-    description: 'List of uploads retrieved successfully',
-    type: [UploadResponseDto],
-  })
-  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
-  @ApiForbiddenResponse({
-    description: 'User does not have sufficient permissions',
-  })
-  findAll(@Query('query', QueryPipe) query: UploadQueryDto) {
-    return this.uploadService.findAll(query);
-  }
+  // @Get()
+  // @Roles(Role.ADMIN, Role.MANAGER)
+  // @ApiOperation({ summary: 'Get all uploads with filters' })
+  // @ApiOkResponse({
+  //   description: 'List of uploads retrieved successfully',
+  //   type: [UploadResponseDto],
+  // })
+  // @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
+  // @ApiForbiddenResponse({
+  //   description: 'User does not have sufficient permissions',
+  // })
+  // findAll(@Query('query', QueryPipe) query: UploadQueryDto) {
+  //   return this.uploadService.findAll(query);
+  // }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get upload by id' })
-  @ApiParam({ name: 'id', description: 'Upload ID' })
-  @ApiOkResponse({
-    description: 'Upload retrieved successfully',
-    type: UploadResponseDto,
-  })
-  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
-  @ApiNotFoundResponse({ description: 'Upload not found' })
-  findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('query', QueryPipe) query?: UploadQueryDto,
-  ) {
-    return this.uploadService.findOne(id, query);
-  }
+  // @Get(':id')
+  // @ApiOperation({ summary: 'Get upload by id' })
+  // @ApiParam({ name: 'id', description: 'Upload ID' })
+  // @ApiOkResponse({
+  //   description: 'Upload retrieved successfully',
+  //   type: UploadResponseDto,
+  // })
+  // @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
+  // @ApiNotFoundResponse({ description: 'Upload not found' })
+  // findOne(
+  //   @Param('id', ParseIntPipe) id: number,
+  //   @Query('query', QueryPipe) query?: UploadQueryDto,
+  // ) {
+  //   return this.uploadService.findOne(id, query);
+  // }
 
   @Delete(':id')
   @Roles(Role.ADMIN)

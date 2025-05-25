@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/user-update.dto';
-import { Role, Status } from '@prisma/client';
+import { Prisma, Role, Status } from '@prisma/client';
 import {
   sanitizeQuery,
   sanitizeQueryForUnique,
@@ -22,15 +22,18 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(query: UserQueryDto) {
-    const queryOptions = sanitizeQuery(
-      query,
-      allowedFieldsForUser,
-      allowedRelationsForUser,
-      allowedRelationFieldsForUser,
-      defaultWhereForUser,
-      defaultSelectForUser,
-      defaultIncludeForUser,
-    );
+    const queryOptions = sanitizeQuery<
+      Prisma.UserSelect,
+      Prisma.UserWhereInput,
+      Prisma.UserInclude
+    >(query, {
+      allowedFields: allowedFieldsForUser,
+      allowedRelations: allowedRelationsForUser,
+      allowedRelationFields: allowedRelationFieldsForUser,
+      defaultWhere: defaultWhereForUser,
+      defaultSelect: defaultSelectForUser,
+      defaultInclude: defaultIncludeForUser,
+    });
 
     return this.prisma.user.findMany(queryOptions);
   }
@@ -38,15 +41,18 @@ export class UserService {
   async findOne(id: string, query?: UserQueryDto) {
     console.log('query:', query);
 
-    const queryOptions = sanitizeQueryForUnique(
-      query,
-      allowedFieldsForUser,
-      allowedRelationsForUser,
-      allowedRelationFieldsForUser,
-      { id },
-      defaultSelectForUser,
-      {},
-    );
+    const queryOptions = sanitizeQueryForUnique<
+      Prisma.UserSelect,
+      Prisma.UserWhereUniqueInput,
+      Prisma.UserInclude
+    >(query, {
+      allowedFields: allowedFieldsForUser,
+      allowedRelations: allowedRelationsForUser,
+      allowedRelationFields: allowedRelationFieldsForUser,
+      defaultWhere: { id },
+      defaultSelect: defaultSelectForUser,
+      defaultInclude: {},
+    });
     console.log('Query Options:', queryOptions);
 
     const user = await this.prisma.user.findUnique(queryOptions);
