@@ -21,8 +21,8 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('My Shop API')
-    .setDescription('The My Shop API documentation')
+    .setTitle('Easy Shop API')
+    .setDescription('The Easy Shop API documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
