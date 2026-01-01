@@ -1,21 +1,19 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { UploadStrategy } from './interfaces/upload.interface';
 import { PrismaService } from '../../prisma/prisma.service';
-import { maxFileSize } from '../../constants/upload.constants';
-import { Status, FilePurpose, EntityType } from '@prisma/client';
+import { Prisma, Status, FilePurpose, EntityType } from '@prisma/client';
 import { UploadQueryDto } from './dto/upload-query.dto';
-import {
-  allowedFieldsForUpload,
-  allowedRelationsForUpload,
-  allowedRelationFieldsForUpload,
-  defaultWhereForUpload,
-  defaultSelectForUpload,
-} from '../../constants/upload.constants';
-import {
-  sanitizeQuery,
-  sanitizeQueryForUnique,
-} from '../../common/sanitizers/query-sanitizers';
+import { sanitizeQuery } from '../../common/sanitizers/query-sanitizers';
 import { AuthRequest } from '../../common/interfaces/request.interface';
+import { maxFileSize } from '../constant/upload.constant';
+import { buildUploadSelectQuery } from './queries/upload.query-builder';
+import { UPLOAD_DEFAULT_SELECT } from './queries/upload.default-query';
+import { ALLOWED_UPLOAD_FIELDS } from './queries/upload.default-query';
 
 @Injectable()
 export class UploadService {
@@ -59,45 +57,89 @@ export class UploadService {
         uploadedById: userId,
         status: Status.ACTIVE,
       },
-      select: defaultSelectForUpload,
+      select: UPLOAD_DEFAULT_SELECT,
     });
 
     return upload;
   }
 
-  // async findAll(query: UploadQueryDto) {
-  //   const queryOptions = sanitizeQuery(
-  //     query,
-  //     allowedFieldsForUpload,
-  //     allowedRelationsForUpload,
-  //     allowedRelationFieldsForUpload,
-  //     defaultWhereForUpload,
-  //     defaultSelectForUpload,
-  //     {},
-  //   );
+  async findAll(query?: UploadQueryDto) {
+    const fields = query?.fields;
+    const sanitizedFields: string[] = sanitizeQuery(
+      fields,
+      ALLOWED_UPLOAD_FIELDS,
+    );
 
-  //   return this.prisma.upload.findMany(queryOptions);
-  // }
+    const select: Prisma.UploadSelect = buildUploadSelectQuery(sanitizedFields);
 
-  // async findOne(id: number, query?: UploadQueryDto) {
-  //   const queryOptions = sanitizeQueryForUnique(
-  //     query,
-  //     allowedFieldsForUpload,
-  //     allowedRelationsForUpload,
-  //     allowedRelationFieldsForUpload,
-  //     { id },
-  //     defaultSelectForUpload,
-  //     {},
-  //   );
+    const where: Prisma.UploadWhereInput = {
+      deletedAt: null,
+    };
 
-  //   const upload = await this.prisma.upload.findUnique(queryOptions);
+    if (query?.filePurpose) {
+      where.filePurpose = query.filePurpose;
+    }
 
-  //   if (!upload) {
-  //     throw new BadRequestException(`Upload with ID ${id} not found`);
-  //   }
+    if (query?.entityType) {
+      where.entityType = query.entityType;
+    }
 
-  //   return upload;
-  // }
+    if (query?.entityId) {
+      where.entityId = query.entityId;
+    }
+
+    if (query?.status) {
+      where.status = query.status;
+    }
+
+    const page: number = query?.page ?? 1;
+    const limit: number = query?.limit ?? 10;
+    const skip: number = (page - 1) * limit;
+
+    const [uploads, total] = await Promise.all([
+      this.prisma.upload.findMany({
+        where,
+        select,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.upload.count({ where }),
+    ]);
+
+    return {
+      data: uploads,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: number, query?: UploadQueryDto) {
+    const fields = query?.fields;
+    const sanitizedFields: string[] = sanitizeQuery(
+      fields,
+      ALLOWED_UPLOAD_FIELDS,
+    );
+
+    const select: Prisma.UploadSelect = buildUploadSelectQuery(sanitizedFields);
+
+    const upload = await this.prisma.upload.findUnique({
+      where: { id, deletedAt: null },
+      select,
+    });
+
+    if (!upload) {
+      throw new NotFoundException(`Upload with ID ${id} not found`);
+    }
+
+    return upload;
+  }
 
   async remove(id: number) {
     const upload = await this.prisma.upload.findUnique({
@@ -138,7 +180,7 @@ export class UploadService {
         deletedAt: null,
         status: Status.ACTIVE,
       },
-      select: defaultSelectForUpload,
+      select: UPLOAD_DEFAULT_SELECT,
     });
   }
 }
