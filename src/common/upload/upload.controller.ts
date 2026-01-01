@@ -24,6 +24,7 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { FilePurpose, EntityType, Role } from '@prisma/client';
@@ -32,7 +33,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AuthRequest } from '../../common/interfaces/request.interface';
 import { UploadResponseDto } from './dto/upload-response.dto';
-import { QueryPipe } from '../../common/pipe/query.pipe';
 import { UploadQueryDto } from './dto/upload-query.dto';
 
 @ApiTags('Upload')
@@ -90,36 +90,58 @@ export class UploadController {
     );
   }
 
-  // @Get()
-  // @Roles(Role.ADMIN, Role.MANAGER)
-  // @ApiOperation({ summary: 'Get all uploads with filters' })
-  // @ApiOkResponse({
-  //   description: 'List of uploads retrieved successfully',
-  //   type: [UploadResponseDto],
-  // })
-  // @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
-  // @ApiForbiddenResponse({
-  //   description: 'User does not have sufficient permissions',
-  // })
-  // findAll(@Query('query', QueryPipe) query: UploadQueryDto) {
-  //   return this.uploadService.findAll(query);
-  // }
+  @Get()
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Get all uploads with filters and pagination' })
+  @ApiOkResponse({
+    description: 'List of uploads retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/UploadResponseDto' },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            total: { type: 'number', example: 100 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
+  @ApiForbiddenResponse({
+    description: 'User does not have sufficient permissions',
+  })
+  @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
+  findAll(@Query() query?: UploadQueryDto) {
+    return this.uploadService.findAll(query);
+  }
 
-  // @Get(':id')
-  // @ApiOperation({ summary: 'Get upload by id' })
-  // @ApiParam({ name: 'id', description: 'Upload ID' })
-  // @ApiOkResponse({
-  //   description: 'Upload retrieved successfully',
-  //   type: UploadResponseDto,
-  // })
-  // @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
-  // @ApiNotFoundResponse({ description: 'Upload not found' })
-  // findOne(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @Query('query', QueryPipe) query?: UploadQueryDto,
-  // ) {
-  //   return this.uploadService.findOne(id, query);
-  // }
+  @Get(':id')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Get upload by id' })
+  @ApiParam({ name: 'id', description: 'Upload ID' })
+  @ApiOkResponse({
+    description: 'Upload retrieved successfully',
+    type: UploadResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
+  @ApiForbiddenResponse({
+    description: 'User does not have sufficient permissions',
+  })
+  @ApiNotFoundResponse({ description: 'Upload not found' })
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query?: UploadQueryDto,
+  ) {
+    return this.uploadService.findOne(id, query);
+  }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
