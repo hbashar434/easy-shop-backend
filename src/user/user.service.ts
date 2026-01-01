@@ -2,62 +2,81 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/user-update.dto';
 import { Prisma, Role, Status } from '@prisma/client';
-import {
-  sanitizeQuery,
-  sanitizeQueryForUnique,
-} from 'src/common/sanitizers/query-sanitizers';
-import {
-  allowedFieldsForUser,
-  allowedRelationsForUser,
-  defaultSelectForUser,
-  defaultWhereForUser,
-  allowedRelationFieldsForUser,
-  defaultIncludeForUser,
-} from 'src/constants/user.constants';
+import { sanitizeQuery } from 'src/common/sanitizers/query-sanitizers';
 import { UserQueryDto } from './dto/user-query.dto';
 import { AuthRequest } from 'src/common/interfaces/request.interface';
+import { buildUserSelectQuery } from './queries/user.query-builder';
+import {
+  USER_DEFAULT_SELECT,
+  ALLOWED_USER_FIELDS,
+} from './queries/user.default-query';
 
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(query: UserQueryDto) {
-    console.log('query:', query);
+  async findAll(query?: UserQueryDto) {
+    const fields = query?.fields;
+    const sanitizedFields: string[] = sanitizeQuery(
+      fields,
+      ALLOWED_USER_FIELDS,
+    );
 
-    const queryOptions = sanitizeQuery<
-      Prisma.UserSelect,
-      Prisma.UserWhereInput,
-      Prisma.UserInclude
-    >(query, {
-      allowedFields: allowedFieldsForUser,
-      allowedRelations: allowedRelationsForUser,
-      allowedRelationFields: allowedRelationFieldsForUser,
-      defaultWhere: defaultWhereForUser,
-      defaultSelect: defaultSelectForUser,
-      defaultInclude: defaultIncludeForUser,
-    });
-    console.log('Query Options:', queryOptions);
-    return this.prisma.user.findMany(queryOptions);
+    const select: Prisma.UserSelect = buildUserSelectQuery(sanitizedFields);
+
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null,
+    };
+
+    if (query?.role) {
+      where.role = query.role;
+    }
+
+    if (query?.status) {
+      where.status = query.status;
+    }
+
+    const page: number = query?.page ?? 1;
+    const limit: number = query?.limit ?? 10;
+    const skip: number = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, query?: UserQueryDto) {
-    console.log('query:', query);
+    const fields = query?.fields;
+    const sanitizedFields: string[] = sanitizeQuery(
+      fields,
+      ALLOWED_USER_FIELDS,
+    );
 
-    const queryOptions = sanitizeQueryForUnique<
-      Prisma.UserSelect,
-      Prisma.UserWhereUniqueInput,
-      Prisma.UserInclude
-    >(query, {
-      allowedFields: allowedFieldsForUser,
-      allowedRelations: allowedRelationsForUser,
-      allowedRelationFields: allowedRelationFieldsForUser,
-      defaultWhere: { id },
-      defaultSelect: defaultSelectForUser,
-      defaultInclude: {},
+    const select: Prisma.UserSelect = buildUserSelectQuery(sanitizedFields);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id, deletedAt: null },
+      select,
     });
-    console.log('Query Options:', queryOptions);
-
-    const user = await this.prisma.user.findUnique(queryOptions);
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -75,7 +94,6 @@ export class UserService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Never allow changing admin's role or status
     if (
       user.role === Role.ADMIN &&
       (updateUserDto.role || updateUserDto.status)
@@ -83,7 +101,6 @@ export class UserService {
       throw new Error('Cannot modify admin role or status');
     }
 
-    // Only allow admin and manager to update role and status for non-admin users
     if (
       (updateUserDto.role || updateUserDto.status) &&
       (req.user.role as Role) !== Role.ADMIN &&
@@ -95,7 +112,7 @@ export class UserService {
     return this.prisma.user.update({
       where: { id },
       data: updateUserDto,
-      select: defaultSelectForUser,
+      select: USER_DEFAULT_SELECT,
     });
   }
 
@@ -138,7 +155,7 @@ export class UserService {
         deletedAt: null,
         status: Status.ACTIVE,
       },
-      select: defaultSelectForUser,
+      select: USER_DEFAULT_SELECT,
     });
   }
 }
