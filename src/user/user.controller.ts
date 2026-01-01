@@ -29,31 +29,45 @@ import {
 } from '@nestjs/swagger';
 import { AuthRequest } from 'src/common/interfaces/request.interface';
 import { UserResponseDto } from './dto/user-response.dto';
-import { QueryPipe } from 'src/common/pipe/query.pipe';
 import { UserQueryDto } from './dto/user-query.dto';
 
 @ApiTags('Users')
 @Controller('users')
-// @UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
-  @ApiOperation({ summary: 'Get all users with filters' })
+  @ApiOperation({ summary: 'Get all users with filters and pagination' })
   @ApiOkResponse({
     description: 'List of users retrieved successfully',
-    type: [UserResponseDto],
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/UserResponseDto' },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            total: { type: 'number', example: 100 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: 'User is not authenticated' })
   @ApiForbiddenResponse({
     description: 'User does not have sufficient permissions',
   })
   @ApiBadRequestResponse({ description: 'Invalid filter parameters' })
-  findAll(
-    @Query('query', QueryPipe) query: UserQueryDto,
-  ): Promise<UserResponseDto[]> {
+  findAll(@Query() query?: UserQueryDto) {
     return this.userService.findAll(query);
   }
 
@@ -76,7 +90,7 @@ export class UserController {
   })
   findOne(
     @Param('id') id: string,
-    @Query('query', QueryPipe) query?: UserQueryDto,
+    @Query() query?: UserQueryDto,
   ): Promise<UserResponseDto> {
     return this.userService.findOne(id, query);
   }
