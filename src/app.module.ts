@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { CategoryModule } from './category/category.module';
 import { BrandModule } from './brand/brand.module';
+import { ProductTagModule } from './product-tag/product-tag.module';
 import { MailModule } from './common/mail/mail.module';
 import { SmsModule } from './common/sms/sms.module';
 import { UploadModule } from './common/upload/upload.module';
@@ -27,6 +28,7 @@ import { UploadModule } from './common/upload/upload.module';
     UserModule,
     CategoryModule,
     BrandModule,
+    ProductTagModule,
     MailModule,
     SmsModule,
     UploadModule,
