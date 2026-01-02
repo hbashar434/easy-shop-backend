@@ -10,10 +10,10 @@ import { Prisma, Status, FilePurpose, EntityType } from '@prisma/client';
 import { UploadQueryDto } from './dto/upload-query.dto';
 import { sanitizeQuery } from '../../common/sanitizers/query-sanitizers';
 import { AuthRequest } from '../../common/interfaces/request.interface';
-import { maxFileSize } from '../constant/upload.constant';
 import { buildUploadSelectQuery } from './queries/upload.query-builder';
 import { UPLOAD_DEFAULT_SELECT } from './queries/upload.default-query';
 import { ALLOWED_UPLOAD_FIELDS } from './queries/upload.default-query';
+import { maxFileSize } from 'src/constant/upload.constant';
 
 @Injectable()
 export class UploadService {
