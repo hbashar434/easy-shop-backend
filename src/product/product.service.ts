@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/product-create.dto';
 import { UpdateProductDto } from './dto/product-update.dto';
 import { Prisma, Status } from '@prisma/client';
+import { ProductResponseDto } from './dto/product-response.dto';
 import { sanitizeQuery } from 'src/common/sanitizers/query-sanitizers';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { buildProductSelectQuery } from './queries/product.query-builder';
@@ -78,8 +79,20 @@ export class ProductService {
       this.prisma.product.count({ where }),
     ]);
 
+    const normalizeDecimal = (v: any) =>
+      v && typeof v === 'object' && typeof v.toNumber === 'function'
+        ? v.toNumber()
+        : v;
+
+    const normalized = products.map((p) => ({
+      ...p,
+      price: normalizeDecimal((p as any).price),
+      discountPrice: normalizeDecimal((p as any).discountPrice),
+      attributes: (p as any).attributes as Record<string, unknown> | null,
+    }));
+
     return {
-      data: products,
+      data: normalized,
       meta: {
         page,
         limit,
@@ -108,7 +121,17 @@ export class ProductService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return product;
+    const normalizeDecimal = (v: any) =>
+      v && typeof v === 'object' && typeof v.toNumber === 'function'
+        ? v.toNumber()
+        : v;
+
+    return {
+      ...product,
+      price: normalizeDecimal((product as any).price),
+      discountPrice: normalizeDecimal((product as any).discountPrice),
+      attributes: (product as any).attributes as Record<string, unknown> | null,
+    } as ProductResponseDto;
   }
 
   async create(createProductDto: CreateProductDto) {
@@ -164,15 +187,30 @@ export class ProductService {
       }
     }
 
-    return this.prisma.product.create({
-      data: {
-        ...createProductDto,
-        status: createProductDto.status ?? Status.ACTIVE,
-        stock: createProductDto.stock ?? 0,
-        sortOrder: createProductDto.sortOrder ?? 0,
-      },
+    const createData: Prisma.ProductUncheckedCreateInput = {
+      ...createProductDto,
+      attributes: createProductDto.attributes as Prisma.InputJsonValue,
+      status: createProductDto.status ?? Status.ACTIVE,
+      stock: createProductDto.stock ?? 0,
+      sortOrder: createProductDto.sortOrder ?? 0,
+    };
+
+    const created = await this.prisma.product.create({
+      data: createData,
       select: PRODUCT_DEFAULT_SELECT,
     });
+
+    const normalizeDecimal = (v: any) =>
+      v && typeof v === 'object' && typeof v.toNumber === 'function'
+        ? v.toNumber()
+        : v;
+
+    return {
+      ...created,
+      price: normalizeDecimal((created as any).price),
+      discountPrice: normalizeDecimal((created as any).discountPrice),
+      attributes: (created as any).attributes as Record<string, unknown> | null,
+    } as ProductResponseDto;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
@@ -240,11 +278,28 @@ export class ProductService {
       }
     }
 
-    return this.prisma.product.update({
+    const updateData: Prisma.ProductUncheckedUpdateInput = {
+      ...updateProductDto,
+      attributes: updateProductDto.attributes as Prisma.InputJsonValue,
+    };
+
+    const updated = await this.prisma.product.update({
       where: { id },
-      data: updateProductDto,
+      data: updateData,
       select: PRODUCT_DEFAULT_SELECT,
     });
+
+    const normalizeDecimal = (v: any) =>
+      v && typeof v === 'object' && typeof v.toNumber === 'function'
+        ? v.toNumber()
+        : v;
+
+    return {
+      ...updated,
+      price: normalizeDecimal((updated as any).price),
+      discountPrice: normalizeDecimal((updated as any).discountPrice),
+      attributes: (updated as any).attributes as Record<string, unknown> | null,
+    } as ProductResponseDto;
   }
 
   async remove(id: number) {
@@ -301,7 +356,7 @@ export class ProductService {
       throw new NotFoundException(`Deleted product with ID ${id} not found`);
     }
 
-    return this.prisma.product.update({
+    const restored = await this.prisma.product.update({
       where: { id },
       data: {
         deletedAt: null,
@@ -309,5 +364,20 @@ export class ProductService {
       },
       select: PRODUCT_DEFAULT_SELECT,
     });
+
+    const normalizeDecimal = (v: any) =>
+      v && typeof v === 'object' && typeof v.toNumber === 'function'
+        ? v.toNumber()
+        : v;
+
+    return {
+      ...restored,
+      price: normalizeDecimal((restored as any).price),
+      discountPrice: normalizeDecimal((restored as any).discountPrice),
+      attributes: (restored as any).attributes as Record<
+        string,
+        unknown
+      > | null,
+    } as ProductResponseDto;
   }
 }
