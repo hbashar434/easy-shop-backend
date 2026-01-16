@@ -11,6 +11,7 @@ import { CategoryModule } from './category/category.module';
 import { BrandModule } from './brand/brand.module';
 import { ProductTagModule } from './product-tag/product-tag.module';
 import { ProductModule } from './product/product.module';
+import { ReviewModule } from './review/review.module';
 import { MailModule } from './common/mail/mail.module';
 import { SmsModule } from './common/sms/sms.module';
 import { UploadModule } from './common/upload/upload.module';
@@ -31,6 +32,7 @@ import { UploadModule } from './common/upload/upload.module';
     BrandModule,
     ProductTagModule,
     ProductModule,
+    ReviewModule,
     MailModule,
     SmsModule,
     UploadModule,
