@@ -13,6 +13,7 @@ import { ProductTagModule } from './product-tag/product-tag.module';
 import { ProductModule } from './product/product.module';
 import { ReviewModule } from './review/review.module';
 import { CartModule } from './cart/cart.module';
+import { AddressModule } from './address/address.module';
 import { MailModule } from './common/mail/mail.module';
 import { SmsModule } from './common/sms/sms.module';
 import { UploadModule } from './common/upload/upload.module';
@@ -35,6 +36,7 @@ import { UploadModule } from './common/upload/upload.module';
     ProductModule,
     ReviewModule,
     CartModule,
+    AddressModule,
     MailModule,
     SmsModule,
     UploadModule,
